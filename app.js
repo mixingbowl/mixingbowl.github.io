@@ -241,7 +241,7 @@ function render(){
 }
 function renderHeader(r){
   const n = firstName();
-  const title = user && n ? `${esc(n)}'s <span>Kitchen</span>` : `Kitchen <span>Notebook</span>`;
+  const title = user && n ? `${esc(n)}'s <span>Kitchen</span>` : `Mixing <span>Bowl</span>`;
   return `<h1>${title}</h1><div class="hright">${user && !recovering ? `<div id="status" class="status ${statusNow.kind}"><i class="dot"></i><span>${esc(statusNow.text)}</span></div><button class="avatar" data-act="go" data-h="account" aria-label="Account">${esc((n || (user.email || '?'))[0].toUpperCase())}</button>` : ''}</div>`;
 }
 function renderTabs(r){
