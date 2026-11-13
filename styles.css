@@ -109,6 +109,9 @@ body.dragging #tripDrop{outline:2px dashed var(--accent);outline-offset:3px;anim
 .fine{margin-top:12px;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5}.fine a,.prose a{color:var(--accent);font-weight:600}
 .umenu a.mlink{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;padding:12px 16px;font-size:15px;font-weight:500;text-decoration:none;color:inherit}.umenu a.mlink:hover{background:var(--accent-soft)}
 .foot a{color:#fff;text-decoration:none;opacity:.85}.foot a:hover{opacity:1;text-decoration:underline}
+.health{margin-bottom:14px}.hrow{margin:10px 0}.hlbl{display:flex;justify-content:space-between;font-size:14.5px;margin-bottom:5px}.hlbl .muted{font-size:13px}
+.hbar{height:9px;border-radius:99px;background:#EFE9E1;overflow:hidden}.hbar i{display:block;height:100%;background:#4E9F6B;border-radius:99px}.hbar.amber i{background:#E2A13B}.hbar.red i{background:var(--accent)}
+.hok{font-size:14px;color:#2F7A4B;font-weight:600;margin:6px 0 4px}.hwarn{font-size:14px;font-weight:600;color:#9A6512;background:#FDF3E2;border-radius:10px;padding:8px 12px;margin:6px 0}.hwarn.red{color:var(--accent);background:var(--accent-soft)}
 .ptitle{font-family:"Archivo Black",sans-serif;font-size:26px;margin:4px 0 14px}
 .shop-head .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:8px}
 .chip{border:1.5px solid var(--line);background:var(--paper);border-radius:99px;padding:6px 12px 6px 8px;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:7px}
