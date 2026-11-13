@@ -205,7 +205,7 @@ function addIngredientsTo(k, recipeId, groups){
 }
 function removeRecipeFrom(k, recipeId){
   k.shopping.items = k.shopping.items.map(it => Object.assign(it, {recipes: (it.recipes || []).filter(x => x !== recipeId)})).filter(it => it.custom || it.recipes.length);
-  delete k.progress.cook[recipeId]; delete k.progress.active[recipeId];
+  delete k.progress.cook[recipeId]; delete k.progress.active[recipeId]; if(k.progress.done) delete k.progress.done[recipeId];
 }
 
 /* ---------------- render ---------------- */
@@ -265,7 +265,8 @@ function renderShopping(){
   const items = visibleItems(), all = allItems(), shop = P().shop, f = ui.filter;
   const done = items.filter(it => shop[it.id]).length;
   const pct = items.length ? Math.round(done / items.length * 100) : 0;
-  const chips = recipes.map(r => `<button class="chip ${isActive(r.id) ? 'on' : ''}" style="--c:${esc(D(r).color || '#888')}" data-act="active" data-drag="1" data-id="${esc(r.id)}"><i class="sw"></i>${esc(D(r).short || D(r).title)}</button>`).join(' ');
+  const chipRecipes = recipes.filter(r => !(P().done || {})[r.id]);
+  const chips = chipRecipes.map(r => `<button class="chip ${isActive(r.id) ? 'on' : ''}" style="--c:${esc(D(r).color || '#888')}" data-act="active" data-drag="1" data-id="${esc(r.id)}"><i class="sw"></i>${esc(D(r).short || D(r).title)}</button>`).join(' ');
   const pool = f === 'have' ? all : items;
   const keep = i => { const st = shop[i.id] || ''; return f === 'all' || (f === 'need' && !st) || (f === 'cart' && st === 'bought') || (f === 'have' && st === 'have'); };
   const cnt = {all: items.length, need: items.filter(i => !shop[i.id]).length, cart: items.filter(i => shop[i.id] === 'bought').length, have: all.filter(i => shop[i.id] === 'have').length};
@@ -288,7 +289,7 @@ function renderShopping(){
   });
   const secOpts = kitchen.shopping.sections;
   return `<div class="card shop-head"><button class="copyic" data-act="copy" aria-label="Copy my list" title="Copy what I still need"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h2"/></svg></button>
-    ${recipes.length ? `<div class="lbl">Shopping for</div><div class="row">${chips}</div>` : ''}
+    ${chipRecipes.length ? `<div class="lbl">Shopping for</div><div class="row">${chips}</div>` : ''}
     <div class="prog-line"><b>${done} of ${items.length} sorted</b><span class="muted">${items.length - done} still remaining</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
     <div class="row" style="margin-top:12px"><button class="btn" data-act="resetshop"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 8H6"/></svg>Start a new trip</button><button class="btn" id="tripDrop" data-act="go" data-h="trips"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>Past trips <span class="fc">${(P().trips || []).length}</span></button></div>
@@ -302,7 +303,7 @@ function renderShopping(){
     </form>` : `<button class="btn addopen" data-act="addopen">Add Item +</button>`}
     <div class="lbl" style="margin-top:16px">Filters</div>
     <div class="row">${fbtn('all','All')}${fbtn('need','Need')}${fbtn('cart','In cart')}${fbtn('have','Have')}</div>
-    <div class="legend">Tap ○ when it's in your cart · <b>Have it</b> if it's already home</div>
+    
   </div><div class="f-${f}">${secs || `<div class="card empty">${!all.length ? 'Nothing here yet. Add a recipe or an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`}</div>`;
 }
 
@@ -339,7 +340,7 @@ function renderRecipe(id){
     ${links ? `<div class="row src">${links}</div>` : ''}
     <div class="prog-line" style="margin-top:0"><b>${p.total && p.done === p.total ? 'All done — enjoy!' : `${p.done} of ${p.total} steps done`}</b><span class="muted">${pct}%</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row" style="margin-top:12px"><button class="btn ${wakeLock ? 'on' : ''}" data-act="wake">${wakeLock ? '☀ Screen staying on' : '☀ Keep screen on'}</button><button class="btn" data-act="go" data-h="edit-${esc(r.id)}">Edit recipe</button><button class="btn" data-act="resetrecipe" data-id="${esc(r.id)}">Reset progress</button></div>
+    <div class="row" style="margin-top:12px">${(P().done || {})[r.id] ? `<button class="btn" data-act="relist" data-id="${esc(r.id)}"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Add to shopping list</button>` : ''}<button class="btn ${wakeLock ? 'on' : ''}" data-act="wake"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>${wakeLock ? 'Screen staying on' : 'Keep screen on'}</button><button class="btn" data-act="go" data-h="edit-${esc(r.id)}">Edit recipe</button><button class="btn" data-act="resetrecipe" data-id="${esc(r.id)}">Reset progress</button></div>
   </div></div>
   <div class="layout">
     <div class="card panel ing-col"><h3>Ingredients</h3>${ings || '<div class="muted">No ingredients yet.</div>'}</div>
@@ -496,7 +497,7 @@ async function saveForm(id){
       const row = R(recId); if(row) row.data = data;
     }
     if(oldPath) sb.storage.from('photos').remove([oldPath]).catch(() => {});
-    if(addList) mutate(k => { addIngredientsTo(k, recId, ingredients); k.progress.active[recId] = true; });
+    if(addList) mutate(k => { addIngredientsTo(k, recId, ingredients); k.progress.active[recId] = true; if(k.progress.done) delete k.progress.done[recId]; });
     if(f.photoUrl) URL.revokeObjectURL(f.photoUrl);
     form = null; toast(id ? 'Saved changes' : 'Saved ' + title);
     location.hash = 'r-' + recId; loadRecipes();
@@ -595,6 +596,7 @@ function finishRecipeTrip(id){
     if(!(t[0] && t[0].at === at)){ t.unshift({at, r: [name], items: its.filter(i => marks[i.id]).map(i => ({n: i.name, q: i.qty || '', s: marks[i.id]}))}); if(t.length > 60) t.length = 60; }
     its.forEach(i => { if((i.recipes || []).length === 1) delete marks[i.id]; });
     k.progress.active[id] = false;
+    (k.progress.done = k.progress.done || {})[id] = true;
   });
   toast(name + ' moved to Past trips');
 }
@@ -620,15 +622,14 @@ const KITCHEN_ART = `<svg class="kart" viewBox="0 0 200 170" aria-hidden="true">
   <path d="M38 132h12v14H38z" fill="#D7263D" stroke="#141414" stroke-width="2.5"/><circle cx="44" cy="128" r="6" fill="#7FB77E" stroke="#141414" stroke-width="2.5"/>
   <path d="M150 132h12v14h-12z" fill="#D7263D" stroke="#141414" stroke-width="2.5"/><circle cx="156" cy="128" r="6" fill="#7FB77E" stroke="#141414" stroke-width="2.5"/>
 </svg>`;
-const POT_ART = `<svg class="pot" viewBox="0 0 140 130" aria-hidden="true">
-  <ellipse cx="70" cy="52" rx="44" ry="8" fill="#F4C9A6" stroke="#141414" stroke-width="3.5"/>
-  <g class="bubbles" fill="#fff" stroke="#141414" stroke-width="2.5">
-    <circle cx="50" cy="50" r="7"/><circle cx="72" cy="48" r="9"/><circle cx="92" cy="50" r="6"/><circle cx="61" cy="47" r="5"/><circle cx="83" cy="48" r="6"/></g>
-  <path d="M26 52v38a10 10 0 0 0 10 10h68a10 10 0 0 0 10-10V52" fill="#D7263D" stroke="#141414" stroke-width="3.5"/>
-  <path d="M26 62h-10M114 62h10" stroke="#141414" stroke-width="5" stroke-linecap="round"/>
-  <path d="M36 70v18" stroke="#fff" stroke-width="3.5" stroke-linecap="round" opacity=".7"/>
-  <g class="flames"><path d="M48 112c-4-6 2-8 0-14 6 4 6 9 0 14z" fill="#F2A33A"/><path d="M70 112c-5-7 3-10 0-17 8 5 7 11 0 17z" fill="#F2A33A"/><path d="M92 112c-4-6 2-8 0-14 6 4 6 9 0 14z" fill="#F2A33A"/></g>
-  <rect x="14" y="112" width="112" height="12" rx="4" fill="#141414"/>
+const POT_ART = `<svg class="pot" viewBox="0 0 160 140" aria-hidden="true">
+  <g class="spoon"><path d="M80 66 L112 8" stroke="#141414" stroke-width="9" stroke-linecap="round"/><path d="M80 66 L112 8" stroke="#C98B4E" stroke-width="5" stroke-linecap="round"/><ellipse cx="78" cy="72" rx="7" ry="11" fill="#C98B4E" stroke="#141414" stroke-width="3" transform="rotate(29 78 72)"/></g>
+  <g class="drops" fill="#F4C9A6" stroke="#141414" stroke-width="2.5"><circle cx="44" cy="52" r="4.5"/><circle cx="116" cy="50" r="4"/><circle cx="58" cy="44" r="3.2"/><circle cx="102" cy="42" r="3.5"/></g>
+  <path class="batter" d="M22 60 C34 44 52 40 66 46 C78 51 86 41 100 42 C116 43 128 50 138 60 Z" fill="#F4C9A6" stroke="#141414" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M18 62h124c0 34-27 58-62 58S18 96 18 62z" fill="#D7263D" stroke="#141414" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="12" y="56" width="136" height="12" rx="6" fill="#fff" stroke="#141414" stroke-width="4"/>
+  <rect x="58" y="118" width="44" height="10" rx="5" fill="#D7263D" stroke="#141414" stroke-width="4"/>
+  <path d="M34 78c2 10 8 19 16 25" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".55"/>
 </svg>`;
 function renderGate(){
   if(gate === 'loading') return `<div class="gate"><div class="loader" aria-label="Loading">${POT_ART}
@@ -789,6 +790,7 @@ document.addEventListener('click', async e => {
   if(a === 'bought'){ const v = shop[id] === 'bought' ? '' : 'bought'; mutate(k => { k.progress.shop[id] = v; }); return; }
   if(a === 'have'){ const v = shop[id] === 'have' ? '' : 'have'; mutate(k => { k.progress.shop[id] = v; }); return; }
   if(a === 'active'){ const v = !isActive(id); mutate(k => { k.progress.active[id] = v; }); return; }
+  if(a === 'relist'){ mutate(k => { k.progress.active[id] = true; if(k.progress.done) delete k.progress.done[id]; }); toast('Added back to your shopping list'); return; }
   if(a === 'filter'){ ui.filter = el.dataset.f; saveUi(); render(); return; }
   if(a === 'delitem'){ const it = allItems().find(i => i.id === id); mutate(k => { k.shopping.items = k.shopping.items.filter(i => i.id !== id); delete k.progress.shop[id]; }); if(it) toast('Removed ' + it.name); return; }
   if(a === 'copy'){
