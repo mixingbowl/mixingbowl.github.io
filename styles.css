@@ -104,6 +104,7 @@ body.dragging #tripDrop{outline:2px dashed var(--accent);outline-offset:3px;anim
 .trip .tbody{padding:0 16px 14px}.trip h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:10px 0 4px}
 .trip ul{margin:0;padding-left:18px;font-size:15px;line-height:1.6}.trip ul .q{color:var(--muted);font-size:13.5px}
 .trips{display:grid;gap:12px}
+.fbbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.fbbtns .btn{text-decoration:none}.fbbtns a.btn:not(.primary){color:inherit}
 .tpart+.tpart{border-top:1px dashed var(--line);margin-top:14px;padding-top:10px}.tname{font-weight:700;font-size:15px;color:var(--accent)}
 .atable{margin-top:8px}.arow{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px dashed var(--line);font-size:14.5px}
 .arow .muted{font-size:13px;text-align:right}.arow > div:first-child .muted{text-align:left;word-break:break-all}
