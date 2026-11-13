@@ -83,13 +83,13 @@ async function boot(){
     const was = user && user.id;
     session = s; user = s ? s.user : null;
     if(user && user.id !== was) startUser();
-    if(!user){ stopUser(); render(); }
+    if(!user){ stopUser(); gate = 'gate'; try{ sessionStorage.removeItem('mb-in'); }catch(e){} render(); }
   });
   const {data} = await sb.auth.getSession();
   session = data.session; user = session ? session.user : null;
   if(user) startUser(); else render();
 }
-function stopUser(){ if(channel){ try{ sb.removeChannel(channel); }catch(e){} channel = null; } recipes = []; kitchen = blankKitchen(); loaded = false; queue = []; }
+function stopUser(){ isAdmin = false; adminData = null; if(channel){ try{ sb.removeChannel(channel); }catch(e){} channel = null; } recipes = []; kitchen = blankKitchen(); loaded = false; queue = []; }
 async function startUser(){
   stopUser(); render();
   await loadAll();
@@ -116,6 +116,7 @@ async function loadAll(quiet){
     if(!queue.length && !flushing) kitchen = normalize(k.data);
     if(!k.data){ await sb.from('kitchens').upsert({user_id: user.id, shopping: kitchen.shopping, progress: kitchen.progress}); }
     loaded = true; setStatus('ok', 'Saved');
+    sb.rpc('is_admin').then(({data}) => { const v = data === true; if(v !== isAdmin){ isAdmin = v; render(); } }, () => {});
   }catch(e){ console.error(e); setStatus('err', "Can't reach your kitchen"); loaded = true; }
   render();
 }
@@ -212,7 +213,7 @@ function route(){
   if(h.startsWith('r-')) return {v:'recipe', id:h.slice(2)};
   if(h.startsWith('edit-')) return {v:'form', id:h.slice(5)};
   if(h === 'add') return {v:'form'};
-  if(['recipes','account','settings','privacy','trips'].includes(h)) return {v:h};
+  if(['recipes','account','settings','privacy','trips','admin'].includes(h)) return {v:h};
   return {v:'shopping'};
 }
 let lastView = '';
@@ -225,6 +226,7 @@ function render(){
   if(!sb){ return; }
   if(!user && r.v === 'privacy'){ app.innerHTML = renderPrivacy(); $('#tabs').innerHTML = ''; }
   else if(!user || recovering){ app.innerHTML = renderAuth(); $('#tabs').innerHTML = ''; }
+  else if(gate !== 'in'){ app.innerHTML = renderGate(); $('#tabs').innerHTML = ''; }
   else if(!loaded){ app.innerHTML = `<div class="grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`; }
   else {
     renderTabs(r);
@@ -235,6 +237,7 @@ function render(){
     else if(r.v === 'settings') app.innerHTML = renderSettings();
     else if(r.v === 'privacy') app.innerHTML = renderPrivacy();
     else if(r.v === 'trips') app.innerHTML = renderTrips();
+    else if(r.v === 'admin') app.innerHTML = renderAdmin();
     else app.innerHTML = renderRecipe(r.id);
   }
   const sameView = (r.v + (r.id || '')) === lastView;
@@ -259,7 +262,7 @@ function renderShopping(){
   const items = visibleItems(), all = allItems(), shop = P().shop, f = ui.filter;
   const done = items.filter(it => shop[it.id]).length;
   const pct = items.length ? Math.round(done / items.length * 100) : 0;
-  const chips = recipes.map(r => `<button class="chip ${isActive(r.id) ? 'on' : ''}" style="--c:${esc(D(r).color || '#888')}" data-act="active" data-id="${esc(r.id)}"><i class="sw"></i>${esc(D(r).short || D(r).title)}</button>`).join(' ');
+  const chips = recipes.map(r => `<button class="chip ${isActive(r.id) ? 'on' : ''}" style="--c:${esc(D(r).color || '#888')}" data-act="active" data-drag="1" data-id="${esc(r.id)}"><i class="sw"></i>${esc(D(r).short || D(r).title)}</button>`).join(' ');
   const pool = f === 'have' ? all : items;
   const keep = i => { const st = shop[i.id] || ''; return f === 'all' || (f === 'need' && !st) || (f === 'cart' && st === 'bought') || (f === 'have' && st === 'have'); };
   const cnt = {all: items.length, need: items.filter(i => !shop[i.id]).length, cart: items.filter(i => shop[i.id] === 'bought').length, have: all.filter(i => shop[i.id] === 'have').length};
@@ -272,7 +275,7 @@ function renderShopping(){
     list = list.slice().sort((a, b) => (shop[a.id] ? 1 : 0) - (shop[b.id] ? 1 : 0)).filter(keep);
     if(f !== 'all' && !list.length) return;
     const sub = f === 'have' ? list.length + ' on hand' : f === 'cart' ? list.length + ' in cart' : (left ? left + ' to get' : 'all set ✓');
-    secs += `<div class="section"><h3>${esc(sec)} <small>${sub}</small></h3><div class="card items">` + list.map(it => {
+    secs += `<div class="section" data-sec="${esc(sec)}"><h3>${esc(sec)} <small>${sub}</small><span class="secmv"><button class="up" data-act="secmv" data-s="${esc(sec)}" data-d="-1" aria-label="Move ${esc(sec)} up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="dn" data-act="secmv" data-s="${esc(sec)}" data-d="1" aria-label="Move ${esc(sec)} down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></span></h3><div class="card items">` + list.map(it => {
       const st = shop[it.id] || '';
       const tags = (it.custom ? `<span class="tag" style="--c:#6E6259">Added by you</span>` : '') + (it.recipes || []).map(x => { const rr = R(x); return rr ? `<span class="tag" style="--c:${esc(D(rr).color)}">${esc(D(rr).short || D(rr).title)}</span>` : ''; }).join('');
       return `<div class="item ${st}"><button class="check" data-act="bought" data-id="${esc(it.id)}" aria-label="In my cart">${CHECK}</button>
@@ -283,19 +286,19 @@ function renderShopping(){
   const secOpts = kitchen.shopping.sections;
   return `<div class="card shop-head"><button class="copyic" data-act="copy" aria-label="Copy my list" title="Copy what I still need"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h2"/></svg></button>
     ${recipes.length ? `<div class="lbl">Shopping for</div><div class="row">${chips}</div>` : ''}
-    <div class="prog-line"><b>${done} of ${items.length} sorted</b><span class="muted">${items.length - done} still to get</span></div>
+    <div class="prog-line"><b>${done} of ${items.length} sorted</b><span class="muted">${items.length - done} still remaining</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row" style="margin-top:12px"><button class="btn" data-act="resetshop"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 8H6"/></svg>Start a new trip</button><button class="btn" data-act="go" data-h="trips"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>Past trips <span class="fc">${(P().trips || []).length}</span></button></div>
-    <div class="lbl" style="margin-top:16px">Add something</div>
-    <form class="addf" data-form="additem" autocomplete="off">
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="resetshop"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 8H6"/></svg>Start a new trip</button><button class="btn" id="tripDrop" data-act="go" data-h="trips"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>Past trips <span class="fc">${(P().trips || []).length}</span></button></div>
+    ${ui.addOpen ? `<form class="addf" data-form="additem" autocomplete="off" style="margin-top:14px">
       <input id="addName" data-keep placeholder="Item (e.g. blueberries)" maxlength="80" required>
       <input id="addQty" data-keep placeholder="Amount (optional)" maxlength="60">
       <select id="addSec" data-keep aria-label="Section">${secOpts.map(s => `<option ${s === ui.sec ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
       <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No specific recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
       <button class="btn primary" type="submit">+ Add</button>
-    </form>
-    <div class="lbl" style="margin-top:16px">Show</div>
-    <div class="row">${fbtn('all','All')}${fbtn('need','Still need')}${fbtn('cart','In cart')}${fbtn('have','Have it')}</div>
+      <button class="btn" type="button" data-act="addclose">Done</button>
+    </form>` : `<button class="btn addopen" data-act="addopen">Add Item +</button>`}
+    <div class="lbl" style="margin-top:16px">Filters</div>
+    <div class="row">${fbtn('all','All')}${fbtn('need','Need')}${fbtn('cart','In cart')}${fbtn('have','Have')}</div>
     <div class="legend">Tap ○ when it's in your cart · <b>Have it</b> if it's already home</div>
   </div><div class="f-${f}">${secs || `<div class="card empty">${!all.length ? 'Nothing here yet. Add a recipe or an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`}</div>`;
 }
@@ -306,10 +309,10 @@ function renderRecipes(){
   return starters + `<div class="grid">` + addTile + recipes.map(r => {
     const d = D(r), p = progressOf(r), pct = p.total ? Math.round(p.done / p.total * 100) : 0;
     const st = p.done === 0 ? 'Not started' : p.done === p.total ? 'Finished ✓' : `Step ${p.cur + 1} of ${p.total}`;
-    return `<button class="tile" style="--c:${esc(d.color)}" data-act="go" data-h="r-${esc(r.id)}">
-      <span class="art">${pic(d)}</span>
+    return `<div class="tile" role="link" tabindex="0" style="--c:${esc(d.color)}" data-act="go" data-h="r-${esc(r.id)}">
+      <span class="art">${pic(d)}</span><button class="tilex" data-act="delrecipe" data-id="${esc(r.id)}" aria-label="Delete ${esc(d.title)}" title="Delete recipe"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <span class="body"><h2>${esc(d.title)}</h2><span class="meta">${d.total ? `<span>⏱ ${esc(d.total)}</span>` : ''}${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}</span>
-      <span class="st">${st}</span><span class="bar"><i style="width:${pct}%"></i></span></span></button>`;
+      <span class="st">${st}</span><span class="bar"><i style="width:${pct}%"></i></span></span></div>`;
   }).join('') + `</div>`;
 }
 
@@ -324,10 +327,10 @@ function renderRecipe(id){
     const tm = (st.timers || []).map(t => `<span class="tchip" data-act="timer" data-min="${+t.min}" data-label="${esc(t.label)}">⏲ ${esc(t.label)}</span>`).join('');
     return `<button class="step ${done ? 'done' : ''} ${cur ? 'cur' : ''}" id="s-${key}" data-act="step" data-id="${esc(r.id)}" data-k="${key}"><span class="num">${done ? '✓' : n}</span><span class="tx">${st.title ? `<div class="tt">${esc(st.title)}</div>` : ''}<p>${fmt(st.text)}</p>${tm ? `<div class="tchips">${tm}</div>` : ''}</span></button>`;
   }).join('')).join('');
-  const links = (d.links || []).filter(l => /^https?:\/\//i.test(l.url || '')).map(l => `<a class="btn orig" href="${esc(l.url)}" target="_blank" rel="noopener">📖 ${esc(l.label || 'Original recipe')} ↗</a>`).join('');
+  const links = (d.links || []).filter(l => /^https?:\/\//i.test(l.url || '')).map(l => `<a class="lchip" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || 'Original recipe')} ↗</a>`).join('');
   const notes = d.notes && d.notes.length ? `<div class="notes"><b>Good to know</b><ul>${d.notes.map(x => `<li>${fmt(x)}</li>`).join('')}</ul></div>` : '';
   return `<button class="back" data-act="go" data-h="recipes">← All recipes</button>
-  <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(d.art || 'bowl')}</div><div class="artfg">${art(d.art || 'bowl').replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<button class="herox" data-act="delrecipe" data-id="${esc(r.id)}" aria-label="Delete recipe" title="Delete recipe"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><label class="heroedit" title="Change picture" aria-label="Change picture">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
+  <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(d.art || 'bowl')}</div><div class="artfg">${art(d.art || 'bowl').replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<label class="heroedit" title="Change picture" aria-label="Change picture">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
     <h2>${esc(d.title)}</h2>
     <div class="meta">${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}${d.prep ? `<span>Prep ${esc(d.prep)}</span>` : ''}${d.cook ? `<span>Cook ${esc(d.cook)}</span>` : ''}${d.total ? `<span>⏱ Total ${esc(d.total)}</span>` : ''}</div>
     ${links ? `<div class="row src">${links}</div>` : ''}
@@ -339,7 +342,7 @@ function renderRecipe(id){
     <div class="card panel ing-col"><h3>Ingredients</h3>${ings || '<div class="muted">No ingredients yet.</div>'}</div>
     <div><h3 style="font-size:19px;margin:0 4px 10px">Steps</h3>${steps || '<div class="card empty">No steps yet.</div>'}
     ${p.total && p.done === p.total ? `<div class="card finish">🎉 You made ${esc(d.title)}!</div>` : ''}${notes}
-    ${links ? `<div class="card panel origbox"><b>Photos and tips</b><div class="row" style="margin-top:10px">${links}</div></div>` : ''}</div>
+    ${links ? `<div class="card panel origbox"><b>Photos and tips</b><div class="lchips">${links}</div></div>` : ''}</div>
   </div>`;
 }
 function renderFab(r){
@@ -367,15 +370,15 @@ function renderForm(id){
   return `<button class="back" data-act="go" data-h="${r ? 'r-' + esc(r.id) : 'recipes'}">← ${r ? 'Back to recipe' : 'All recipes'}</button>
   <div class="card panel form">
     <h3>${r ? 'Edit recipe' : 'Add a recipe'}</h3>
-    <div class="lbl2">Recipe website link <span class="hint">optional</span></div>
+    <div class="lbl2">Recipe website link <span class="hint">recommended</span></div>
     <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a recipe link" value="${v('link', link.url)}">${r ? '' : `<button class="btn" type="button" data-act="import" ${f.importing ? 'disabled' : ''}>${f.importing ? 'Importing…' : 'Import'}</button>`}</div>
     ${!r && f.importMsg ? `<div class="importmsg ${f.importOk ? 'ok' : ''}">${esc(f.importMsg)}</div>` : ''}
-    <div class="lbl2">Recipe title <span class="req">required</span></div>
+    <div class="lbl2">Recipe title <span class="hint">required</span></div>
     <input class="tin" id="f-title" data-keep maxlength="90" placeholder="e.g. Grandma's apple crisp" value="${v('title', d.title)}">
     ${r ? '' : `
     ${f.importOk ? '' : `<div class="lbl2">Or paste the recipe</div>
     <textarea class="tin" id="f-paste" data-keep rows="5" placeholder="Copy the recipe from the site and paste it here"></textarea>
-    <div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-act="parse"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Fill in the form</button></div>`}`}
+    <div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-act="parse"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download into form</button></div>`}`}
     <fieldset class="lockable" ${!r && !f.filled ? 'disabled' : ''}>
     <div class="g4">
       <div><div class="lbl2">Serves / makes</div><input class="tin" id="f-yield" data-keep maxlength="40" value="${v('y', d.yield)}"></div>
@@ -462,7 +465,7 @@ async function saveForm(id){
   const val = s => (($(s) || {}).value || '').trim();
   const title = val('#f-title');
   if(!title){ f.err = 'Add a recipe title.'; render(); return; }
-  if(!val('#f-ing')){ f.err = 'Add the ingredients (paste the recipe and tap Fill in the form).'; render(); return; }
+  if(!val('#f-ing')){ f.err = 'Add the ingredients (paste the recipe and tap Download into form).'; render(); return; }
   const ingredients = ingTextToGroups(val('#f-ing'));
   const steps = stepTextToSections(val('#f-steps'), old.steps);
   const link = val('#f-link');
@@ -541,6 +544,118 @@ async function deleteAccount(){
   }
 }
 let menuOpen = false, delOpen = false, photoBusy = null;
+function aisleOrder(){ return [...new Set(kitchen.shopping.sections.concat(allItems().map(i => i.section || 'Other')))]; }
+function drawAisles(focus){
+  const o = aisleOrder();
+  const up = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>', dn = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+  $('#modalRoot').innerHTML = `<div class="modal" data-act="mclose"><div class="card aisles" data-stop><h3>Aisle order</h3>
+    <ol class="alist">${o.map((s, i) => `<li class="${i === focus ? 'moved' : ''}"><span>${esc(s)}</span><button class="mv" data-act="aislemove" data-i="${i}" data-d="-1" aria-label="Move ${esc(s)} up" ${i === 0 ? 'disabled' : ''}>${up}</button><button class="mv" data-act="aislemove" data-i="${i}" data-d="1" aria-label="Move ${esc(s)} down" ${i === o.length - 1 ? 'disabled' : ''}>${dn}</button></li>`).join('')}</ol>
+    <div class="row"><button class="btn primary" data-act="mclose">Done</button></div></div></div>`;
+}
+/* drag a recipe chip into Past trips */
+let drag = null, ghost = null, dragJustEnded = false;
+document.addEventListener('pointerdown', e => {
+  const c = e.target.closest('[data-drag]'); if(!c || e.button > 0) return;
+  drag = {el: c, id: c.dataset.id, x: e.clientX, y: e.clientY, on: false};
+});
+document.addEventListener('pointermove', e => {
+  if(!drag) return;
+  if(!drag.on){
+    if(Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) return;
+    drag.on = true; ghost = drag.el.cloneNode(true); ghost.classList.add('ghost'); document.body.appendChild(ghost); document.body.classList.add('dragging');
+  }
+  e.preventDefault();
+  ghost.style.left = e.clientX + 'px'; ghost.style.top = e.clientY + 'px';
+  const t = document.elementFromPoint(e.clientX, e.clientY), d = $('#tripDrop');
+  if(d) d.classList.toggle('over', !!(t && t.closest('#tripDrop')));
+}, {passive: false});
+function endDrag(e, cancel){
+  if(!drag) return;
+  const was = drag; drag = null;
+  if(!was.on) return;
+  dragJustEnded = true; setTimeout(() => { dragJustEnded = false; }, 350);
+  if(ghost){ ghost.remove(); ghost = null; } document.body.classList.remove('dragging');
+  const d = $('#tripDrop'); if(d) d.classList.remove('over');
+  if(cancel) return;
+  const t = document.elementFromPoint(e.clientX, e.clientY);
+  if(t && t.closest('#tripDrop')) finishRecipeTrip(was.id);
+}
+document.addEventListener('pointerup', e => endDrag(e, false));
+document.addEventListener('pointercancel', e => endDrag(e, true));
+function finishRecipeTrip(id){
+  const r = R(id); if(!r) return;
+  const name = D(r).short || D(r).title, at = new Date().toISOString();
+  mutate(k => {
+    const marks = k.progress.shop = k.progress.shop || {};
+    const its = k.shopping.items.filter(i => (i.recipes || []).includes(id));
+    const t = k.progress.trips = k.progress.trips || [];
+    if(!(t[0] && t[0].at === at)){ t.unshift({at, r: [name], items: its.filter(i => marks[i.id]).map(i => ({n: i.name, q: i.qty || '', s: marks[i.id]}))}); if(t.length > 60) t.length = 60; }
+    its.forEach(i => { if((i.recipes || []).length === 1) delete marks[i.id]; });
+    k.progress.active[id] = false;
+  });
+  toast(name + ' moved to Past trips');
+}
+/* enter-kitchen gate */
+let gate = 'gate';
+try{ if(sessionStorage.getItem('mb-in')) gate = 'in'; }catch(e){}
+const KITCHEN_ART = `<svg class="kart" viewBox="0 0 200 170" aria-hidden="true">
+  <g fill="#141414">${Array.from({length: 10}, (_, i) => `<rect x="${i * 20}" y="${152 + (i % 2) * 9}" width="10" height="9"/><rect x="${i * 20 + 10}" y="${161 - (i % 2) * 9}" width="10" height="9"/>`).join('')}</g>
+  <rect x="24" y="30" width="152" height="122" fill="#FBF6EC" stroke="#141414" stroke-width="3.5"/>
+  <rect x="16" y="20" width="168" height="14" rx="3" fill="#141414"/>
+  <circle cx="100" cy="27" r="3" fill="#fff"/><circle cx="88" cy="27" r="2" fill="#fff"/><circle cx="112" cy="27" r="2" fill="#fff"/>
+  <g><rect x="18" y="46" width="20" height="26" fill="#D7263D"/><rect x="38" y="46" width="20" height="26" fill="#fff"/><rect x="58" y="46" width="20" height="26" fill="#D7263D"/><rect x="78" y="46" width="20" height="26" fill="#fff"/><rect x="98" y="46" width="20" height="26" fill="#D7263D"/><rect x="118" y="46" width="20" height="26" fill="#fff"/><rect x="138" y="46" width="20" height="26" fill="#D7263D"/><rect x="158" y="46" width="20" height="26" fill="#fff"/></g>
+  <g><circle cx="28" cy="72" r="10" fill="#D7263D" stroke="#141414" stroke-width="3"/><circle cx="48" cy="72" r="10" fill="#fff" stroke="#141414" stroke-width="3"/><circle cx="68" cy="72" r="10" fill="#D7263D" stroke="#141414" stroke-width="3"/><circle cx="88" cy="72" r="10" fill="#fff" stroke="#141414" stroke-width="3"/><circle cx="108" cy="72" r="10" fill="#D7263D" stroke="#141414" stroke-width="3"/><circle cx="128" cy="72" r="10" fill="#fff" stroke="#141414" stroke-width="3"/><circle cx="148" cy="72" r="10" fill="#D7263D" stroke="#141414" stroke-width="3"/><circle cx="168" cy="72" r="10" fill="#fff" stroke="#141414" stroke-width="3"/></g>
+  <rect x="18" y="44" width="164" height="4" fill="#141414"/>
+  <rect x="82" y="92" width="36" height="60" rx="3" fill="#fff" stroke="#141414" stroke-width="3.5"/>
+  <rect x="89" y="99" width="22" height="22" rx="2" fill="#DDEFF5" stroke="#141414" stroke-width="2.5"/>
+  <circle cx="110" cy="128" r="2.6" fill="#141414"/>
+  <rect x="36" y="92" width="36" height="34" rx="3" fill="#DDEFF5" stroke="#141414" stroke-width="3"/>
+  <rect x="128" y="92" width="36" height="34" rx="3" fill="#DDEFF5" stroke="#141414" stroke-width="3"/>
+  <path d="M54 92v34M146 92v34" stroke="#141414" stroke-width="2.5"/>
+  <path d="M42 100l8-6M134 100l8-6" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <rect x="33" y="126" width="42" height="6" rx="2" fill="#141414"/><rect x="125" y="126" width="42" height="6" rx="2" fill="#141414"/>
+  <path d="M38 132h12v14H38z" fill="#D7263D" stroke="#141414" stroke-width="2.5"/><circle cx="44" cy="128" r="6" fill="#7FB77E" stroke="#141414" stroke-width="2.5"/>
+  <path d="M150 132h12v14h-12z" fill="#D7263D" stroke="#141414" stroke-width="2.5"/><circle cx="156" cy="128" r="6" fill="#7FB77E" stroke="#141414" stroke-width="2.5"/>
+</svg>`;
+const POT_ART = `<svg class="pot" viewBox="0 0 140 130" aria-hidden="true">
+  <ellipse cx="70" cy="52" rx="44" ry="8" fill="#F4C9A6" stroke="#141414" stroke-width="3.5"/>
+  <g class="bubbles" fill="#fff" stroke="#141414" stroke-width="2.5">
+    <circle cx="50" cy="50" r="7"/><circle cx="72" cy="48" r="9"/><circle cx="92" cy="50" r="6"/><circle cx="61" cy="47" r="5"/><circle cx="83" cy="48" r="6"/></g>
+  <path d="M26 52v38a10 10 0 0 0 10 10h68a10 10 0 0 0 10-10V52" fill="#D7263D" stroke="#141414" stroke-width="3.5"/>
+  <path d="M26 62h-10M114 62h10" stroke="#141414" stroke-width="5" stroke-linecap="round"/>
+  <path d="M36 70v18" stroke="#fff" stroke-width="3.5" stroke-linecap="round" opacity=".7"/>
+  <g class="flames"><path d="M48 112c-4-6 2-8 0-14 6 4 6 9 0 14z" fill="#F2A33A"/><path d="M70 112c-5-7 3-10 0-17 8 5 7 11 0 17z" fill="#F2A33A"/><path d="M92 112c-4-6 2-8 0-14 6 4 6 9 0 14z" fill="#F2A33A"/></g>
+  <rect x="14" y="112" width="112" height="12" rx="4" fill="#141414"/>
+</svg>`;
+function renderGate(){
+  if(gate === 'loading') return `<div class="gate"><div class="loader" aria-label="Loading">${POT_ART}
+    <div class="ltext">Loading<span class="dots"><i>.</i><i>.</i><i>.</i></span></div></div></div>`;
+  return `<div class="gate"><div class="gatecard">${KITCHEN_ART}
+    <button class="btn primary big" data-act="enter">Enter your kitchen</button></div></div>`;
+}
+function enterKitchen(){
+  gate = 'loading'; render();
+  const t0 = Date.now();
+  const go = () => { if(!loaded) return setTimeout(go, 150); setTimeout(() => {
+    gate = 'in'; try{ sessionStorage.setItem('mb-in', '1'); }catch(e){}
+    render(); app.classList.add('fadein'); setTimeout(() => app.classList.remove('fadein'), 700);
+  }, Math.max(0, 1600 - (Date.now() - t0))); };
+  go();
+}
+let isAdmin = false, adminData = null, adminBusy = false;
+function renderAdmin(){
+  const back = `<button class="back" data-act="go" data-h="shopping">← Back</button><h2 class="ptitle">Admin</h2>`;
+  if(!isAdmin) return back + `<div class="card empty">This page is only for the site administrator.</div>`;
+  if(!adminData && !adminBusy){
+    adminBusy = true;
+    sb.rpc('admin_users').then(({data, error}) => { adminBusy = false; adminData = error ? {err: true} : (data || []); render(); });
+  }
+  if(!adminData) return back + `<div class="card empty">Loading…</div>`;
+  if(adminData.err) return back + `<div class="card empty">Couldn't load members.</div>`;
+  const fmtD = t => t ? new Date(t).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}) : '—';
+  return back + `<div class="card panel"><h3>Members <small>${adminData.length}</small></h3>
+    <div class="atable">${adminData.map(u => `<div class="arow"><div><b>${esc(u.name || '—')}</b><div class="muted">${esc(u.email)}</div></div><div class="muted">Joined ${fmtD(u.created_at)}<br>Last in ${fmtD(u.last_sign_in_at)}<br>${u.recipes} recipe${u.recipes == 1 ? '' : 's'}</div></div>`).join('')}</div></div>`;
+}
 function renderTrips(){
   const trips = P().trips || [];
   const list = (arr) => `<ul>${arr.map(i => `<li>${esc(i.n)}${i.q ? ` <span class="q">· ${esc(fmt(i.q))}</span>` : ''}</li>`).join('')}</ul>`;
@@ -559,8 +674,9 @@ function renderMenu(){
     <div class="umhead"><b>${esc(firstName() || 'Your kitchen')}</b><span>${esc(user.email)}</span></div>
     <button role="menuitem" data-act="go" data-h="settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>Settings</button>
     <button role="menuitem" data-act="go" data-h="account"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Account</button>
+    ${isAdmin ? `<button role="menuitem" data-act="go" data-h="admin"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>Admin</button>` : ''}
     <button role="menuitem" data-act="go" data-h="privacy"><span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/><path d="M12 15v2.5"/></svg></span>Privacy</button>
-    <button role="menuitem" class="out" data-act="signout"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M15 16l4-4-4-4"/><path d="M19 12H10"/></svg></span>Log out</button>
+    <button role="menuitem" class="out" data-act="signout"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M15 16l4-4-4-4"/><path d="M19 12H10"/></svg></span>Exit kitchen</button>
   </div>`;
 }
 function renderSettings(){
@@ -589,7 +705,7 @@ function renderAccount(){
     <div class="lbl2">Email</div><div>${esc(user.email)}</div>
     ${since ? `<div class="lbl2">Member since</div><div>${esc(since)}</div>` : ''}
     <div class="lbl2">What's saved</div><div>${recipes.length} recipe${recipes.length === 1 ? '' : 's'} · ${allItems().length} shopping list item${allItems().length === 1 ? '' : 's'}</div>
-    <div class="row" style="margin-top:18px"><button class="btn" data-act="signout">Log out</button></div>
+    <div class="row" style="margin-top:18px"><button class="btn" data-act="signout">Exit kitchen</button></div>
   </div>
   <div class="card panel danger" style="margin-top:16px"><h3>Delete account</h3>
     <p style="margin:6px 0 12px">Permanently deletes your account, all your recipes and photos, your shopping list and your cooking progress. This can't be undone.</p>
@@ -603,10 +719,9 @@ function renderAccount(){
 function renderPrivacy(){
   return `<button class="back" data-act="go" data-h="${user ? 'recipes' : ''}">← Back</button>
   <div class="card panel prose"><h3>Your privacy</h3>
-    <p><b>Your kitchen is yours.</b> Your recipes, photos, shopping list and cooking progress are tied to your account. Other people who use Mixing Bowl can't see them, and nobody can browse your data through the site.</p>
-    <p><b>Passwords stay secret.</b> Passwords are stored encrypted. No one, including the person who runs this site, can see yours.</p>
-    <p><b>Who can see the database.</b> Mixing Bowl is a small personal project run by Hayley. Like the owner of any website, she has technical access to the database that stores accounts, so she could see your email address and what you've saved. She doesn't look at people's data, sell it, or share it, and it isn't used for ads.</p>
-    <p><b>Photos.</b> Photos you upload are stored at long, unguessable web addresses. They aren't listed anywhere, but anyone who had a photo's exact address could open it, so skip anything sensitive.</p>
+    <p><b>Your kitchen is yours.</b> Your recipes, photos, shopping list and progress are tied to your account. Other members can't see them, and nothing is browsable through the site. As with most websites, the site administrator has technical access to the underlying database and can see a list of member names and email addresses to run the site. Your data is never reviewed, sold, shared or used for advertising.</p>
+    <p><b>Passwords stay secret.</b> Passwords are stored encrypted. No one, including the site administrator, can see yours.</p>
+    <p><b>Photos.</b> Uploaded photos are stored at private, unguessable web addresses that aren't listed anywhere. Anyone with a photo's exact address could open it, so avoid uploading anything sensitive.</p>
     <p><b>Where it's stored.</b> Accounts and data are kept by Supabase, a database service. The website itself is hosted on GitHub Pages.</p>
     <p><b>Leaving.</b> You can delete your account at any time from <b>Account</b>, which permanently removes your account and everything you've saved.</p>
   </div>`;
@@ -636,6 +751,7 @@ let confirmFn = null;
 
 /* ---------------- events ---------------- */
 document.addEventListener('click', async e => {
+  if(dragJustEnded){ dragJustEnded = false; e.preventDefault(); return; }
   if(e.target.closest('[data-stop]') && !e.target.closest('[data-act]')) return;
   const el = e.target.closest('[data-act]');
   if(menuOpen && !(el && el.dataset.act === 'menu')){ menuOpen = false; render(); }
@@ -648,7 +764,7 @@ document.addEventListener('click', async e => {
   if(a === 'delopen'){ delOpen = true; render(); setTimeout(() => { const w = $('#del-word'); if(w) w.focus(); }, 50); return; }
   if(a === 'delclose'){ if(e.target.closest('[data-stop]') && el.classList.contains('modal')) return; delOpen = false; render(); return; }
   if(a === 'delconfirm'){ if((($('#del-word') || {}).value || '').trim().toUpperCase() !== 'DELETE'){ toast('Type DELETE to confirm'); return; } el.disabled = true; deleteAccount(); return; }
-  if(a === 'go'){ location.hash = el.dataset.h; return; }
+  if(a === 'go'){ if(el.dataset.h === 'admin') adminData = null; location.hash = el.dataset.h; return; }
   if(a === 'authmode'){ authView = {mode: el.dataset.m, msg:'', err:'', busy:false}; render(); return; }
   if(a === 'bought'){ const v = shop[id] === 'bought' ? '' : 'bought'; mutate(k => { k.progress.shop[id] = v; }); return; }
   if(a === 'have'){ const v = shop[id] === 'have' ? '' : 'have'; mutate(k => { k.progress.shop[id] = v; }); return; }
@@ -678,6 +794,18 @@ document.addEventListener('click', async e => {
   if(a === 'delrecipe'){ const r = R(id); confirmBox('Delete this recipe?', 'Deletes ' + D(r).title + ', its photo, progress and list items only it needed. Can\'t be undone.', 'Delete recipe', () => deleteRecipe(id)); return; }
   if(a === 'starters'){ el.disabled = true; addStarters(); return; }
   if(a === 'parse'){ fillFromPaste(); return; }
+  if(a === 'addopen'){ ui.addOpen = true; render(); setTimeout(() => { const n = $('#addName'); if(n) n.focus(); }, 30); return; }
+  if(a === 'addclose'){ ui.addOpen = false; render(); return; }
+  if(a === 'aisles'){ drawAisles(); return; }
+  if(a === 'secmv'){
+    const s = el.dataset.s, d = +el.dataset.d, vis = [...document.querySelectorAll('.section[data-sec]')].map(x => x.dataset.sec), nb = vis[vis.indexOf(s) + d];
+    if(!nb) return;
+    const o = aisleOrder().filter(x => x !== s); o.splice(o.indexOf(nb) + (d > 0 ? 1 : 0), 0, s);
+    mutate(k => { k.shopping.sections = o.slice(); });
+    setTimeout(() => { const n = document.querySelector(`.section[data-sec="${CSS.escape(s)}"]`); if(n){ n.classList.add('moved'); n.scrollIntoView({block:'nearest', behavior:'smooth'}); setTimeout(() => n.classList.remove('moved'), 700); } }, 20);
+    return;
+  }
+  if(a === 'aislemove'){ const o = aisleOrder(), i = +el.dataset.i, j = i + (+el.dataset.d); if(j < 0 || j >= o.length) return; [o[i], o[j]] = [o[j], o[i]]; mutate(k => { k.shopping.sections = o.slice(); }); drawAisles(j); return; }
   if(a === 'import'){ importLink(); return; }
   if(a === 'rmphoto'){ if(form.photoUrl) URL.revokeObjectURL(form.photoUrl); form.photoBlob = null; form.photoUrl = null; form.removePhoto = true; render(); return; }
   if(a === 'saveform'){ saveForm(id || null); return; }
@@ -686,7 +814,8 @@ document.addEventListener('click', async e => {
   if(a === 'jump'){ const s = document.getElementById('s-' + el.dataset.k); if(s) s.scrollIntoView({behavior:'smooth', block:'center'}); return; }
   if(a === 'mclose'){ $('#modalRoot').innerHTML = ''; return; }
   if(a === 'mok'){ $('#modalRoot').innerHTML = ''; const fn = confirmFn; confirmFn = null; if(fn) fn(); return; }
-  if(a === 'signout'){ await flush(); await sb.auth.signOut(); location.hash = ''; return; }
+  if(a === 'signout'){ await flush(); try{ sessionStorage.removeItem('mb-in'); }catch(err){} gate = 'gate'; await sb.auth.signOut(); location.hash = ''; return; }
+  if(a === 'enter'){ enterKitchen(); return; }
   if(a === 'wake'){
     if(wakeLock){ wantWake = false; try{ await wakeLock.release(); }catch(err){} wakeLock = null; render(); return; }
     wantWake = true;
