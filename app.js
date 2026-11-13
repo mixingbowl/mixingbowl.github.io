@@ -212,7 +212,7 @@ function route(){
   if(h.startsWith('r-')) return {v:'recipe', id:h.slice(2)};
   if(h.startsWith('edit-')) return {v:'form', id:h.slice(5)};
   if(h === 'add') return {v:'form'};
-  if(['recipes','account','settings','privacy'].includes(h)) return {v:h};
+  if(['recipes','account','settings','privacy','trips'].includes(h)) return {v:h};
   return {v:'shopping'};
 }
 let lastView = '';
@@ -234,6 +234,7 @@ function render(){
     else if(r.v === 'account') app.innerHTML = renderAccount();
     else if(r.v === 'settings') app.innerHTML = renderSettings();
     else if(r.v === 'privacy') app.innerHTML = renderPrivacy();
+    else if(r.v === 'trips') app.innerHTML = renderTrips();
     else app.innerHTML = renderRecipe(r.id);
   }
   const sameView = (r.v + (r.id || '')) === lastView;
@@ -280,11 +281,11 @@ function renderShopping(){
     }).join('') + `</div></div>`;
   });
   const secOpts = kitchen.shopping.sections;
-  return `<div class="card shop-head">
+  return `<div class="card shop-head"><button class="copyic" data-act="copy" aria-label="Copy my list" title="Copy what I still need"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h2"/></svg></button>
     ${recipes.length ? `<div class="lbl">Shopping for</div><div class="row">${chips}</div>` : ''}
     <div class="prog-line"><b>${done} of ${items.length} sorted</b><span class="muted">${items.length - done} still to get</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row" style="margin-top:12px"><button class="btn" data-act="copy"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/></svg>Copy what I need</button><button class="btn" data-act="resetshop"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 8H6"/></svg>Start a new trip</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="resetshop"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 8H6"/></svg>Start a new trip</button><button class="btn" data-act="go" data-h="trips"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>Past trips <span class="fc">${(P().trips || []).length}</span></button></div>
     <div class="lbl" style="margin-top:16px">Add something</div>
     <form class="addf" data-form="additem" autocomplete="off">
       <input id="addName" data-keep placeholder="Item (e.g. blueberries)" maxlength="80" required>
@@ -352,7 +353,7 @@ let form = null; // {forId, photoBlob, photoUrl, removePhoto, busy, err}
 function ensureForm(id){
   if(!form || form.forId !== (id || 'new')){
     if(form && form.photoUrl) URL.revokeObjectURL(form.photoUrl);
-    form = {forId: id || 'new', photoBlob: null, photoUrl: null, removePhoto: false, busy: false, err: '', filled: false};
+    form = {forId: id || 'new', photoBlob: null, photoUrl: null, removePhoto: false, busy: false, err: '', filled: false, importing: false, importMsg: '', importOk: false};
   }
   return form;
 }
@@ -366,14 +367,16 @@ function renderForm(id){
   return `<button class="back" data-act="go" data-h="${r ? 'r-' + esc(r.id) : 'recipes'}">← ${r ? 'Back to recipe' : 'All recipes'}</button>
   <div class="card panel form">
     <h3>${r ? 'Edit recipe' : 'Add a recipe'}</h3>
-    ${r ? '' : `<div class="muted" style="font-size:14px;margin:4px 0 6px">Paste the recipe from any website and tap <b>Fill in the form</b>. Check the result, fix anything that's off, then save.</div>`}
-    <div class="lbl2">Recipe website link</div>
-    <input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="https://…" value="${v('link', link.url)}">
-    ${r ? '' : `<div class="lbl2">Paste the recipe</div>
-    <textarea class="tin" id="f-paste" data-keep rows="6" placeholder="On the recipe website, tap Jump to Recipe (or Print), select the recipe text, copy it, and paste it here."></textarea>
-    <div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-act="parse">✨ Fill in the form</button><span class="muted" style="font-size:13px">${f.filled ? 'Filled in below. Look it over.' : ''}</span></div>`}
-    <div class="lbl2">Recipe name</div>
+    <div class="lbl2">Recipe title <span class="req">required</span></div>
     <input class="tin" id="f-title" data-keep maxlength="90" placeholder="e.g. Grandma's apple crisp" value="${v('title', d.title)}">
+    <div class="lbl2">Recipe website link <span class="hint">optional</span></div>
+    <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a link to import it automatically" value="${v('link', link.url)}">${r ? '' : `<button class="btn" type="button" data-act="import" ${f.importing ? 'disabled' : ''}>${f.importing ? 'Importing…' : 'Import'}</button>`}</div>
+    ${r ? '' : `${f.importMsg ? `<div class="importmsg ${f.importOk ? 'ok' : ''}">${esc(f.importMsg)}</div>` : ''}
+    <div class="lbl2">Paste the recipe <span class="req">${f.importOk ? 'not needed, it imported' : 'required if the link doesn\'t import'}</span></div>
+    <textarea class="tin" id="f-paste" data-keep rows="6" placeholder="On the recipe website, tap Jump to Recipe (or Print), select the recipe text, copy it, and paste it here."></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-act="parse">✨ Fill in the form</button></div>`}
+    ${!r && !f.filled ? `<div class="lockmsg">Import the link or paste the recipe and tap <b>Fill in the form</b>. The details below unlock once they're filled in.</div>` : ''}
+    <fieldset class="lockable" ${!r && !f.filled ? 'disabled' : ''}>
     <div class="g4">
       <div><div class="lbl2">Serves / makes</div><input class="tin" id="f-yield" data-keep maxlength="40" value="${v('y', d.yield)}"></div>
       <div><div class="lbl2">Prep time</div><input class="tin" id="f-prep" data-keep maxlength="40" value="${v('p', d.prep)}"></div>
@@ -386,16 +389,17 @@ function renderForm(id){
     <textarea class="tin" id="f-steps" data-keep rows="9">${esc(sectionsToStepText(d.steps))}</textarea>
     <div class="lbl2">Notes <span class="hint">optional, one per line</span></div>
     <textarea class="tin" id="f-notes" data-keep rows="3">${esc((d.notes || []).join('\n'))}</textarea>
-    <div class="lbl2">Picture</div>
+    <div class="lbl2">Picture <span class="hint">a drawing is picked from the recipe title</span></div>
     <div class="picrow">
-      <div class="picprev">${photoNow ? `<img src="${esc(photoNow)}" alt="">` : art(($('#f-art') || {}).value || d.art || 'bowl')}</div>
+      <div class="picprev" id="f-pic">${photoNow ? `<img src="${esc(photoNow)}" alt="">` : art(guessArt(($('#f-title') || {}).value || d.title || ''))}</div>
       <div class="piccol">
-        <label class="btn filebtn"><input type="file" id="f-photo" accept="image/*" hidden>📷 ${photoNow ? 'Change photo' : 'Upload a photo'}</label>
-        ${photoNow ? `<button class="btn" type="button" data-act="rmphoto">Use a drawing instead</button>` : `<div><div class="hint" style="margin:6px 0 4px">or pick a drawing</div><select class="tin" id="f-art" data-keep data-act-change="art">${ARTS.map(a => `<option value="${a}" ${a === (d.art || 'bowl') ? 'selected' : ''}>${ART_NAMES[a]}</option>`).join('')}</select></div>`}
+        <label class="btn filebtn"><input type="file" id="f-photo" accept="image/*" hidden>📷 ${photoNow ? 'Change photo' : 'Upload your own photo'}</label>
+        ${photoNow ? `<button class="btn" type="button" data-act="rmphoto">Use the drawing instead</button>` : ''}
       </div>
     </div>
     <label class="cb"><input type="checkbox" id="f-addlist" data-keep ${r ? '' : 'checked'}> ${r ? 'Add any new ingredients to my shopping list' : 'Add the ingredients to my shopping list'}</label>
-    <div class="row" style="margin-top:16px"><button class="btn primary big" type="button" data-act="saveform" data-id="${r ? esc(r.id) : ''}" ${f.busy ? 'disabled' : ''}>${f.busy ? 'Saving…' : r ? 'Save changes' : 'Save recipe'}</button></div>
+    </fieldset>
+    <div class="row" style="margin-top:16px"><button class="btn primary big" type="button" data-act="saveform" data-id="${r ? esc(r.id) : ''}" ${f.busy || (!r && !f.filled) ? 'disabled' : ''}>${f.busy ? 'Saving…' : r ? 'Save changes' : 'Save recipe'}</button></div>
     ${f.err ? `<div class="err">${esc(f.err)}</div>` : ''}
   </div>`;
 }
@@ -406,21 +410,38 @@ function fillFromPaste(){
   const set = (id, val, force) => { const el = $(id); if(el && val && (force || !el.value.trim())) el.value = val; };
   set('#f-title', p.title); set('#f-yield', p.yield); set('#f-prep', p.prep); set('#f-cook', p.cook); set('#f-total', p.total);
   set('#f-ing', p.ingredients, true); set('#f-steps', p.steps, true); set('#f-notes', p.notes);
-  const guess = guessArt((p.title || '') + ' ' + p.ingredients);
-  const a = $('#f-art'); if(a) a.value = guess;
+  if(!p.ingredients){ toast("Couldn't find the ingredients. Try pasting just the recipe part."); return; }
   form.filled = true; render();
-  toast(p.ingredients ? 'Filled in. Look it over before saving.' : "Couldn't find the ingredients. Try pasting just the recipe part.");
+  toast('Filled in. Look it over before saving.');
+}
+async function importLink(){
+  const url = (($('#f-link') || {}).value || '').trim();
+  if(!/^https?:\/\/\S+\.\S+/i.test(url)){ toast('Paste a full link that starts with https://'); return; }
+  if(form.importing) return;
+  form.importing = true; form.importMsg = ''; render();
+  let p = null, msg = '';
+  try{
+    const {data, error} = await sb.functions.invoke('import-recipe', {body: {url}});
+    if(error) throw error;
+    if(data && data.ingredients) p = data; else msg = (data && data.error) || '';
+  }catch(err){ console.error(err); }
+  form.importing = false;
+  if(!p){ form.importOk = false; form.importMsg = (/share that page/.test(msg) ? 'That site blocks automatic imports. ' : msg ? msg + ' ' : "Couldn't import from that site. ") + 'Paste the recipe below instead.'; render(); return; }
+  const set = (id, val, force) => { const el = $(id); if(el && val && (force || !el.value.trim())) el.value = val; };
+  set('#f-title', p.title); set('#f-yield', p.yield); set('#f-prep', p.prep); set('#f-cook', p.cook); set('#f-total', p.total);
+  set('#f-ing', p.ingredients, true); set('#f-steps', p.steps, true); set('#f-notes', p.notes);
+  form.filled = true; form.importOk = true; form.importMsg = 'Imported! Look it over before saving.'; render();
 }
 function guessArt(t){
-  t = t.toLowerCase();
-  if(/\bpie\b|tart|galette/.test(t)) return 'pie';
-  if(/lasagna|casserole|bake\b|enchilada/.test(t)) return 'lasagna';
-  if(/cake pop/.test(t)) return 'cakepops';
-  if(/cake|cupcake/.test(t)) return 'cake';
-  if(/cookie|brownie|bar\b|snickerdoodle/.test(t)) return 'cookies';
-  if(/bread|loaf|roll|muffin|biscuit|scone/.test(t)) return 'bread';
-  if(/soup|stew|chili|chowder|curry/.test(t)) return 'soup';
-  if(/pasta|spaghetti|noodle|penne|mac/.test(t)) return 'pasta';
+  t = (t || '').toLowerCase();
+  if(/cake ?pops?/.test(t)) return 'cakepops';
+  if(/\bpies?\b|\btarts?\b|galette|cobbler|crisp\b|crumble|quiche|turnover/.test(t)) return 'pie';
+  if(/cupcake|cheesecake|\bcakes?\b|torte|bundt|tiramisu/.test(t)) return 'cake';
+  if(/cookie|brownie|blondie|\bbars?\b|snickerdoodle|macaron|biscotti|shortbread|fudge|truffle/.test(t)) return 'cookies';
+  if(/lasagna|casserole|\bbake\b|baked ziti|enchilada|gratin|moussaka|shepherd|strata/.test(t)) return 'lasagna';
+  if(/soup|stew|chili|chowder|curry|bisque|gumbo|broth|pho\b|ramen/.test(t)) return 'soup';
+  if(/pasta|spaghetti|noodle|penne|\bmac\b|macaroni|ravioli|gnocchi|fettuccine|linguine|rigatoni|orzo|carbonara|alfredo|lo mein/.test(t)) return 'pasta';
+  if(/bread|loaf|\brolls?\b|muffin|biscuit|scone|bagel|focaccia|brioche|pancake|waffle|croissant|pretzel|buns?\b|sourdough|cinnamon roll/.test(t)) return 'bread';
   return 'bowl';
 }
 async function shrink(file, max){
@@ -441,7 +462,8 @@ async function saveForm(id){
   const f = form, existing = id ? R(id) : null, old = existing ? D(existing) : {};
   const val = s => (($(s) || {}).value || '').trim();
   const title = val('#f-title');
-  if(!title){ f.err = 'Give the recipe a name.'; render(); return; }
+  if(!title){ f.err = 'Add a recipe title.'; render(); return; }
+  if(!val('#f-ing')){ f.err = 'Add the ingredients (paste the recipe and tap Fill in the form).'; render(); return; }
   const ingredients = ingTextToGroups(val('#f-ing'));
   const steps = stepTextToSections(val('#f-steps'), old.steps);
   const link = val('#f-link');
@@ -452,8 +474,7 @@ async function saveForm(id){
     links: /^https?:\/\//i.test(link) ? [{label:'Original recipe', url:link}].concat((old.links || []).filter(l => l.url !== link && l.label !== 'Original recipe')) : (old.links || []).filter(l => l.label !== 'Original recipe'),
     color: old.color || PALETTE[recipes.length % PALETTE.length]
   });
-  const artSel = $('#f-art'); if(artSel) data.art = artSel.value;
-  if(!data.art) data.art = guessArt(title);
+  data.art = guessArt(title);
   const addList = ($('#f-addlist') || {}).checked;
   f.busy = true; f.err = ''; render();
   try{
@@ -521,13 +542,26 @@ async function deleteAccount(){
   }
 }
 let menuOpen = false, delOpen = false, photoBusy = null;
+function renderTrips(){
+  const trips = P().trips || [];
+  const list = (arr) => `<ul>${arr.map(i => `<li>${esc(i.n)}${i.q ? ` <span class="q">· ${esc(fmt(i.q))}</span>` : ''}</li>`).join('')}</ul>`;
+  const body = trips.map((t, n) => {
+    const d = new Date(t.at), got = t.items.filter(i => i.s === 'bought'), had = t.items.filter(i => i.s === 'have');
+    const when = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric'});
+    return `<details class="card trip" ${n === 0 ? 'open' : ''}><summary><div><b>${esc(when)}</b><div class="muted">${got.length} bought · ${had.length} already had${t.r && t.r.length ? ' · ' + esc(t.r.join(', ')) : ''}</div></div><span class="chev">▾</span></summary>
+      <div class="tbody">${got.length ? `<h4>Bought</h4>${list(got)}` : ''}${had.length ? `<h4>Already had</h4>${list(had)}` : ''}</div></details>`;
+  }).join('');
+  return `<button class="back" data-act="go" data-h="shopping">← Shopping list</button>
+  <h2 class="ptitle">Past trips</h2>
+  ${trips.length ? `<div class="trips">${body}</div>` : `<div class="card empty">No past trips yet. When you tap <b>Start a new trip</b>, what you bought and what you already had gets saved here.</div>`}`;
+}
 function renderMenu(){
   return `<div class="umenu" role="menu">
     <div class="umhead"><b>${esc(firstName() || 'Your kitchen')}</b><span>${esc(user.email)}</span></div>
-    <button role="menuitem" data-act="go" data-h="settings"><span class="ic">⚙</span>Settings</button>
-    <button role="menuitem" data-act="go" data-h="account"><span class="ic">◉</span>Account</button>
-    <button role="menuitem" data-act="go" data-h="privacy"><span class="ic">🔒</span>Privacy</button>
-    <button role="menuitem" class="out" data-act="signout"><span class="ic">↩</span>Log out</button>
+    <button role="menuitem" data-act="go" data-h="settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>Settings</button>
+    <button role="menuitem" data-act="go" data-h="account"><span class="ic"><svg viewBox="0 0 24 24"><path d="M7 14.5V20h10v-5.5"/><path d="M7 14.5a4 4 0 0 1-1.2-7.7A4.5 4.5 0 0 1 12 4a4.5 4.5 0 0 1 6.2 2.8A4 4 0 0 1 17 14.5z"/><path d="M7 17h10"/></svg></span>Account</button>
+    <button role="menuitem" data-act="go" data-h="privacy"><span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/><path d="M12 15v2.5"/></svg></span>Privacy</button>
+    <button role="menuitem" class="out" data-act="signout"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M15 16l4-4-4-4"/><path d="M19 12H10"/></svg></span>Log out</button>
   </div>`;
 }
 function renderSettings(){
@@ -628,13 +662,24 @@ document.addEventListener('click', async e => {
     try{ await navigator.clipboard.writeText(txt || 'Nothing left to buy!'); toast('Copied your list'); }catch(err){ toast("Couldn't copy on this device"); }
     return;
   }
-  if(a === 'resetshop'){ confirmBox('Start a new trip?', 'This clears every "In cart" and "Have it" mark. Your items stay on the list.', 'Clear marks', () => mutate(k => { k.progress.shop = {}; })); return; }
+  if(a === 'resetshop'){
+    const at = new Date().toISOString(), names = recipes.filter(r => isActive(r.id)).map(r => D(r).short || D(r).title);
+    confirmBox('Start a new trip?', 'This trip is saved to Past trips, then every "In cart" and "Have it" mark is cleared. Your items stay on the list.', 'Start new trip', () => mutate(k => {
+      const marks = k.progress.shop || {};
+      const its = k.shopping.items.filter(i => marks[i.id]).map(i => ({n: i.name, q: i.qty || '', s: marks[i.id]}));
+      const t = k.progress.trips = k.progress.trips || [];
+      if(its.length && !(t[0] && t[0].at === at)){ t.unshift({at, r: names, items: its}); if(t.length > 60) t.length = 60; }
+      k.progress.shop = {};
+    }));
+    return;
+  }
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
   if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; }); return; }
   if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks all ingredients and steps for this recipe.', 'Reset', () => mutate(k => { k.progress.cook[id] = {i:{}, s:{}}; })); return; }
   if(a === 'delrecipe'){ const r = R(id); confirmBox('Delete this recipe?', 'This permanently deletes ' + D(r).title + ', its photo and all of your progress on it. Shopping list items that only this recipe needed are removed too. This can\'t be undone.', 'Delete recipe', () => deleteRecipe(id)); return; }
   if(a === 'starters'){ el.disabled = true; addStarters(); return; }
   if(a === 'parse'){ fillFromPaste(); return; }
+  if(a === 'import'){ importLink(); return; }
   if(a === 'rmphoto'){ if(form.photoUrl) URL.revokeObjectURL(form.photoUrl); form.photoBlob = null; form.photoUrl = null; form.removePhoto = true; render(); return; }
   if(a === 'saveform'){ saveForm(id || null); return; }
   if(a === 'timer'){ startTimer(+el.dataset.min, el.dataset.label); return; }
@@ -649,6 +694,12 @@ document.addEventListener('click', async e => {
     try{ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; render(); }); toast('Screen will stay on while this page is open'); render(); }
     catch(err){ wantWake = false; toast("This browser won't let the page keep the screen on"); }
   }
+});
+document.addEventListener('input', e => {
+  if(e.target.id === 'f-title'){ const p = $('#f-pic'); if(p && !p.querySelector('img')) p.innerHTML = art(guessArt(e.target.value)); }
+});
+document.addEventListener('paste', e => {
+  if(e.target.id === 'f-link' && form && form.forId === 'new') setTimeout(() => { if(/^https?:\/\/\S+\.\S+/i.test(e.target.value.trim())) importLink(); }, 0);
 });
 document.addEventListener('change', async e => {
   if(e.target.dataset && e.target.dataset.photoFor && e.target.files[0]){
@@ -670,7 +721,6 @@ document.addEventListener('change', async e => {
     if(form.photoUrl) URL.revokeObjectURL(form.photoUrl);
     form.photoBlob = blob; form.photoUrl = URL.createObjectURL(blob); form.removePhoto = false; e.target.value = ''; render();
   }
-  if(e.target.id === 'f-art') render();
 });
 document.addEventListener('submit', async e => {
   const kind = e.target.dataset.form; if(!kind) return; e.preventDefault();
