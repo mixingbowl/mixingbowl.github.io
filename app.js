@@ -762,7 +762,7 @@ function renderSettings(){
       <div><button class="btn primary" type="submit">Update password</button></div>
     </form>
   </div>
-  <div class="card panel" style="margin-top:16px"><h3>Add to your phone homescreen</h3>
+  <div class="card panel" style="margin-top:16px"><h3>Add Mixing Bowl to your Home Screen</h3>
     <p class="muted" style="margin:6px 0 10px">There's no App Store download. Add it to your Home Screen and it opens just like an app.</p>
     <p style="margin:6px 0"><b>iPhone:</b> open this site in Safari, tap Share, then <b>Add to Home Screen</b>.</p>
     <p style="margin:6px 0"><b>Android:</b> open it in Chrome, tap ⋮, then <b>Add to Home screen</b>.</p>
