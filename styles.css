@@ -41,6 +41,54 @@ main{max-width:980px;margin:0 auto;padding:18px 16px}
 
 /* shopping */
 .shop-head{padding:16px;margin-bottom:18px;position:relative}
+.addopen{margin-top:14px}
+.chip[data-drag]{touch-action:none;user-select:none;-webkit-user-select:none}
+.chip.ghost{position:fixed;z-index:90;pointer-events:none;transform:translate(-50%,-60%) rotate(-4deg) scale(1.06);box-shadow:0 8px 18px rgba(0,0,0,.25);background:#fff}
+body.dragging #tripDrop{outline:2px dashed var(--accent);outline-offset:3px;animation:pulse 1s infinite}
+#tripDrop.over{background:var(--accent);border-color:var(--accent);color:#fff}
+.aislebar{display:flex;justify-content:flex-end;margin:-6px 2px 6px}
+.section h3{display:flex;align-items:baseline;gap:6px}
+.secmv{margin-left:auto;display:inline-flex;gap:4px;align-self:center}
+.secmv button{width:26px;height:26px;border-radius:8px;border:1.5px solid #CFC8C0;background:#fff;display:grid;place-items:center;padding:0;color:#6b6460}
+.secmv button:hover{border-color:#141414;color:#141414}
+.secmv svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+[class^="f-"] > .section:first-child .up,[class^="f-"] > .section:last-child .dn{visibility:hidden}
+.section.moved .items{outline:2px solid var(--accent);outline-offset:2px;transition:outline-color .6s}
+.linkbtn{border:0;background:none;padding:4px 2px;font-size:13.5px;font-weight:700;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.linkbtn:hover{color:#141414}
+.aisles .alist{list-style:none;margin:10px 0 0;padding:0;max-height:60vh;overflow:auto}
+.alist li{display:flex;align-items:center;gap:6px;padding:8px 4px;border-bottom:1px dashed var(--line);transition:background .3s}
+.alist li span{flex:1;font-weight:600}
+.alist li.moved{background:var(--accent-soft)}
+.alist .mv{width:34px;height:34px;border-radius:10px;border:1.5px solid #141414;background:#fff;display:grid;place-items:center;padding:0}
+.alist .mv svg{width:16px;height:16px;fill:none;stroke:#141414;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.alist .mv:disabled{opacity:.25}
+.gate{min-height:calc(100vh - 170px);display:grid;place-items:center;padding:20px 0}
+.gatecard{background:#fff;border:2px solid #141414;border-radius:24px;box-shadow:0 6px 0 #141414;padding:24px 22px 22px;text-align:center;width:min(300px,100%);animation:pop .4s ease-out}
+.gatecard .kart{width:100%;max-width:190px;display:block;margin:4px auto 18px}
+.gatecard h2{font-family:'Pacifico',cursive;font-weight:400;font-size:30px;color:var(--accent);margin:0 0 16px;line-height:1.5}
+.gatecard .btn{width:100%;justify-content:center}
+.kart .steam path{animation:steam 2.2s ease-in-out infinite;opacity:.0}
+.kart .steam path:nth-child(2){animation-delay:.4s}.kart .steam path:nth-child(3){animation-delay:.8s}
+@keyframes steam{0%{opacity:0;transform:translateY(6px)}40%{opacity:.9}100%{opacity:0;transform:translateY(-8px)}}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+.loader{background:#fff;border:2px solid #141414;border-radius:24px;box-shadow:0 6px 0 #141414;padding:28px 34px 22px;text-align:center;animation:pop .3s ease-out}
+.loader svg{width:150px;height:auto;display:block;margin:0 auto;overflow:visible}
+.pot .bubbles circle{transform-box:fill-box;transform-origin:center;animation:bubble 1.4s ease-in infinite;opacity:0}
+.pot .bubbles circle:nth-child(2){animation-delay:.3s}.pot .bubbles circle:nth-child(3){animation-delay:.6s}.pot .bubbles circle:nth-child(4){animation-delay:.9s}.pot .bubbles circle:nth-child(5){animation-delay:1.15s}
+@keyframes bubble{0%{opacity:0;transform:translateY(8px) scale(.4)}25%{opacity:1}75%{opacity:1;transform:translateY(-14px) scale(1)}100%{opacity:0;transform:translateY(-20px) scale(1.25)}}
+.pot .flames path{transform-box:fill-box;transform-origin:bottom center;animation:flick .5s ease-in-out infinite alternate}
+.pot .flames path:nth-child(2){animation-delay:.15s}.pot .flames path:nth-child(3){animation-delay:.3s}
+@keyframes flick{from{transform:scaleY(.8)}to{transform:scaleY(1.12)}}
+.loader .hand{transform-origin:60px 64px;animation:mbspin 1.1s linear infinite}
+.ltext{margin-top:12px;font-family:'Archivo Black',sans-serif;font-size:17px}
+.dots i{font-style:normal;visibility:hidden}.dots i:nth-child(1){visibility:visible}.dots i:nth-child(2){animation:dot2 1.5s steps(1) infinite}.dots i:nth-child(3){animation:dot3 1.5s steps(1) infinite}
+@keyframes dot2{0%{visibility:hidden}33%{visibility:visible}100%{visibility:visible}}
+@keyframes dot3{0%{visibility:hidden}66%{visibility:visible}100%{visibility:visible}}
+@keyframes blink{0%,100%{opacity:.15}50%{opacity:1}}
+@keyframes mbspin{to{transform:rotate(360deg)}}
+#app.fadein{animation:fadein .6s ease-out}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .copyic{position:absolute;top:10px;right:10px;width:40px;height:40px;display:grid;place-items:center;border:1.5px solid #141414;border-radius:10px;background:#fff;box-shadow:0 2px 0 #141414;padding:0;color:#141414}
 .copyic .bi{width:20px;height:20px}.copyic:active{transform:translateY(2px);box-shadow:none}
 .shop-head > .lbl:first-of-type{padding-right:48px}
@@ -49,6 +97,8 @@ main{max-width:980px;margin:0 auto;padding:18px 16px}
 .trip .tbody{padding:0 16px 14px}.trip h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:10px 0 4px}
 .trip ul{margin:0;padding-left:18px;font-size:15px;line-height:1.6}.trip ul .q{color:var(--muted);font-size:13.5px}
 .trips{display:grid;gap:12px}
+.atable{margin-top:8px}.arow{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px dashed var(--line);font-size:14.5px}
+.arow .muted{font-size:13px;text-align:right}.arow > div:first-child .muted{text-align:left;word-break:break-all}
 .ptitle{font-family:"Archivo Black",sans-serif;font-size:26px;margin:4px 0 14px}
 .shop-head .lbl{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:8px}
 .chip{border:1.5px solid var(--line);background:var(--paper);border-radius:99px;padding:6px 12px 6px 8px;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:7px}
@@ -70,6 +120,9 @@ main{max-width:980px;margin:0 auto;padding:18px 16px}
 .btn.orig:hover{background:#b44a33}
 .src{margin:4px 0 14px}
 .origbox{margin-top:12px}
+.lchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.lchip{display:inline-flex;align-items:center;border:1.5px solid #141414;border-radius:99px;padding:4px 11px;font-size:13px;font-weight:600;color:#141414;text-decoration:none;background:#fff}
+.lchip:hover{background:#141414;color:#fff}
 .addtile{border:2px dashed #D9C8B6;background:transparent;box-shadow:none;align-items:center;justify-content:center;min-height:220px;text-align:center}
 .addtile .plus{font-size:44px;line-height:1;color:var(--accent);margin-top:18px}
 .addtile .body{align-items:center;flex:0}
@@ -119,6 +172,10 @@ button.have{flex:none;border:1.5px solid var(--line);background:#fff;border-radi
 .tile{overflow:hidden;text-align:left;padding:0;border:1px solid var(--line);background:var(--paper);border-radius:18px;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column}
 .tile:hover{transform:translateY(-2px);box-shadow:0 2px 4px rgba(60,40,20,.08),0 10px 24px rgba(60,40,20,.1)}
 .tile .art{aspect-ratio:16/10;display:block;width:100%}
+.tile{cursor:pointer;position:relative}
+.tilex{position:absolute;top:10px;right:10px;z-index:2;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#fff;border:2px solid #141414;box-shadow:0 2px 0 #141414;padding:0;color:#141414}
+.tilex svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.8;stroke-linecap:round}
+.tilex:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .tile .art svg{display:block;width:100%;height:100%}
 .tile .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
 .tile h2{font-size:19px;line-height:1.2}
@@ -327,7 +384,8 @@ h3,.panel h3,.section h3,.stephead,.tile h2{font-family:'Archivo Black','DM Sans
 /* recipe picture controls */
 .herox,.heroedit{position:absolute;top:12px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#fff;border:2px solid #141414;box-shadow:0 3px 0 #141414;cursor:pointer;padding:0;color:#141414}
 .herox{right:12px}
-.heroedit{top:auto;bottom:12px;right:12px}
+.heroedit{top:auto;bottom:12px;right:12px;width:32px;height:32px;border-width:1.5px;box-shadow:0 2px 0 #141414}
+.heroedit svg{width:16px!important;height:16px!important;stroke-width:2.2!important}
 .herox svg,.heroedit svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 .herox:hover{background:var(--accent);color:#fff}
 .heroedit:hover{background:#141414;color:#fff}
