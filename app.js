@@ -755,7 +755,7 @@ function renderPrivacy(){
     <p><b>Photos.</b> Uploaded photos are stored at private, unguessable web addresses that aren't listed anywhere. Anyone with a photo's exact address could open it, so avoid uploading anything sensitive.</p>
     <p><b>Where it's stored.</b> Accounts and data are kept by Supabase, a database service. The website itself is hosted on GitHub Pages.</p>
     <p><b>Leaving.</b> You can delete your account at any time from <b>Account</b>, which permanently removes your account and everything you've saved.</p>
-    <p><b>Children.</b> Mixing Bowl isn't intended for children under 13, and we don't knowingly collect information from them.</p>
+    <p><b>Age.</b> Mixing Bowl is intended for people 13 and older. If you're under 13, please don't create an account.</p>
     <p><b>Questions.</b> Email <a href="mailto:mixingbowl.admin@gmail.com">mixingbowl.admin@gmail.com</a>.</p>
   </div>`;
 }
