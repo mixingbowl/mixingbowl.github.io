@@ -296,3 +296,7 @@ h3,.panel h3,.section h3,.stephead,.tile h2{font-family:'Archivo Black','DM Sans
 .photobtn{position:absolute;right:12px;bottom:12px;display:inline-flex;align-items:center;gap:6px;background:rgba(20,20,20,.85);color:#fff;border:2px solid #fff;border-radius:99px;padding:7px 14px;font-size:14px;font-weight:700;cursor:pointer}
 .photobtn:hover{background:#141414}
 .photorm{right:auto;left:12px}
+.addf #addFor{grid-column:1/-1}
+@media(min-width:700px){.addf{grid-template-columns:2fr 1.1fr 1.1fr 1.4fr auto}.addf #addFor{grid-column:auto}}
+.addf select{appearance:auto}
+.bi{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
