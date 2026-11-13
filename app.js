@@ -430,6 +430,7 @@ async function importLink(){
   const set = (id, val, force) => { const el = $(id); if(el && val && (force || !el.value.trim())) el.value = val; };
   set('#f-title', p.title); set('#f-yield', p.yield); set('#f-prep', p.prep); set('#f-cook', p.cook); set('#f-total', p.total);
   set('#f-ing', p.ingredients, true); set('#f-steps', p.steps, true); set('#f-notes', p.notes);
+  if(p.title) $('#f-title').value = p.title;
   form.filled = true; form.importOk = true; form.importMsg = 'Imported! Look it over before saving.'; render();
 }
 function guessArt(t){
