@@ -287,7 +287,7 @@ function renderShopping(){
     <div class="row" style="margin-top:12px"><button class="btn" data-act="copy"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/></svg>Copy what I need</button><button class="btn" data-act="resetshop"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 8H6"/></svg>Start a new trip</button></div>
     <div class="lbl" style="margin-top:16px">Add something</div>
     <form class="addf" data-form="additem" autocomplete="off">
-      <input id="addName" data-keep placeholder="Item (e.g. paper towels)" maxlength="80" required>
+      <input id="addName" data-keep placeholder="Item (e.g. blueberries)" maxlength="80" required>
       <input id="addQty" data-keep placeholder="Amount (optional)" maxlength="60">
       <select id="addSec" data-keep aria-label="Section">${secOpts.map(s => `<option ${s === ui.sec ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
       <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No specific recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
