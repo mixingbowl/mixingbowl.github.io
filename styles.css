@@ -300,3 +300,16 @@ h3,.panel h3,.section h3,.stephead,.tile h2{font-family:'Archivo Black','DM Sans
 @media(min-width:700px){.addf{grid-template-columns:2fr 1.1fr 1.1fr 1.4fr auto}.addf #addFor{grid-column:auto}}
 .addf select{appearance:auto}
 .bi{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+/* recipe picture controls */
+.herox,.heroedit{position:absolute;top:12px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#fff;border:2px solid #141414;box-shadow:0 3px 0 #141414;cursor:pointer;padding:0;color:#141414}
+.herox{right:12px}
+.heroedit{top:auto;bottom:12px;right:12px}
+.herox svg,.heroedit svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.herox:hover{background:var(--accent);color:#fff}
+.heroedit:hover{background:#141414;color:#fff}
+.spin.dark{border-color:rgba(0,0,0,.2);border-top-color:#141414}
+.hero .art.drawn{position:relative;height:clamp(200px,32vw,290px);overflow:hidden}
+.hero .art.drawn .artbg,.hero .art.drawn .artfg{position:absolute;inset:0}
+.hero .art.drawn svg{width:100%;height:100%;max-height:none;display:block}
+.hero .art.drawn .artfg .cloth{display:none}
+.hero .art.drawn .artbg svg > :not(.cloth){display:none}
