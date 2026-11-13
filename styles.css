@@ -237,3 +237,4 @@ main{background:var(--cream);border:3px solid #141414;border-radius:20px;box-sha
 .brand{min-width:0}
 .brand h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 @media(max-width:600px){.brand h1{font-size:23px}.status span{display:none}}
+.brand h1{line-height:1.25;padding:.12em .1em .38em 0;margin-bottom:-.26em}
