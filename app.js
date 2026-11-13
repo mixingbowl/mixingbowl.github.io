@@ -746,7 +746,7 @@ function restoreTrip(at){
 }
 function renderTrips(){
   const trips = P().trips || [];
-  const list = (arr) => `<ul class="tlist">${arr.map(i => `<li><span>${esc(i.n)}${i.q ? ` <span class="q">· ${esc(fmt(i.q))}</span>` : ''}</span><button class="readd" data-act="readd" data-iid="${esc(i.id || '')}" data-n="${esc(i.n)}" data-q="${esc(i.q || '')}" title="Add to list" aria-label="Add ${esc(i.n)} to list">+</button></li>`).join('')}</ul>`;
+  const list = (arr) => `<ul class="tlist">${arr.map(i => `<li><span>${esc(i.n)}${i.q ? ` <span class="q">· ${fmt(i.q)}</span>` : ''}</span><button class="readd" data-act="readd" data-iid="${esc(i.id || '')}" data-n="${esc(i.n)}" data-q="${esc(i.q || '')}" title="Add to list" aria-label="Add ${esc(i.n)} to list">+</button></li>`).join('')}</ul>`;
   const days = [];
   trips.forEach(t => { const key = new Date(t.at).toDateString(); const g = days.find(x => x.key === key); if(g) g.trips.push(t); else days.push({key, trips: [t]}); });
   const body = days.map((g, n) => {
