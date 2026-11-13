@@ -144,8 +144,7 @@ function renderAuth(){
     ${v.err ? `<div class="err">${esc(v.err)}</div>` : ''}${v.msg ? `<div class="ok">${esc(v.msg)}</div>` : ''}
     <div class="authlinks">
       ${m !== 'signin' ? `<button class="linkbtn" data-act="authmode" data-m="signin">I have an account — sign in</button>` : `<button class="linkbtn" data-act="authmode" data-m="signup">New here? Create an account</button><button class="linkbtn" data-act="authmode" data-m="forgot">Forgot password?</button>`}
-    </div>
-    <p class="authnote">Your recipes and lists are private to your account. <a href="#privacy">How your data is kept</a></p></div></div>`;
+    </div></div></div>`;
 }
 async function handleAuthForm(kind){
   const email = ($('#au-email') || {}).value, pass = ($('#au-pass') || {}).value;
@@ -602,6 +601,32 @@ function finishRecipeTrip(id){
   });
   toast(name + ' moved to Past trips');
 }
+function newTrip(){
+  const at = new Date().toISOString(), live = recipes.filter(r => isActive(r.id) && !(P().done || {})[r.id]);
+  const fin0 = live.filter(r => { const its = allItems().filter(i => (i.recipes || []).includes(r.id)); return its.length && its.every(i => P().shop[i.id]); });
+  const moved = fin0.map(r => D(r).short || D(r).title);
+  mutate(k => {
+    const marks = k.progress.shop = k.progress.shop || {}, logged = k.progress.logged = k.progress.logged || {};
+    Object.keys(logged).forEach(id => { if(!marks[id]) delete logged[id]; });
+    const itemsOf = id => k.shopping.items.filter(i => (i.recipes || []).includes(id));
+    const fin = live.filter(r => { const its = itemsOf(r.id); return its.length && its.every(i => marks[i.id]); }).map(r => r.id);
+    const loose = k.shopping.items.filter(i => !(i.recipes || []).some(x => R(x)) && marks[i.id]);
+    const shown = k.shopping.items.filter(i => marks[i.id] && !logged[i.id] && ((i.recipes || []).some(x => live.some(r => r.id === x)) || loose.includes(i)));
+    const names = live.filter(r => fin.includes(r.id) || shown.some(i => (i.recipes || []).includes(r.id))).map(r => D(r).short || D(r).title);
+    const t = k.progress.trips = k.progress.trips || [];
+    if((shown.length || fin.length) && !(t[0] && t[0].at === at)){
+      t.unshift({at, rids: fin, r: names, items: shown.map(i => Object.assign({id: i.id, n: i.name, q: i.qty || '', s: marks[i.id]}, loose.includes(i) ? {c: 1, sec: i.section || 'Other'} : {}))});
+      if(t.length > 60) t.length = 60;
+    }
+    fin.forEach(id => { k.progress.active[id] = false; (k.progress.done = k.progress.done || {})[id] = true; });
+    const stillNeeded = i => (i.recipes || []).some(x => live.some(r => r.id === x) && !fin.includes(x));
+    k.shopping.items.forEach(i => { if(marks[i.id] && !stillNeeded(i) && !loose.includes(i)){ delete marks[i.id]; delete logged[i.id]; } });
+    loose.forEach(i => { delete marks[i.id]; delete logged[i.id]; });
+    k.shopping.items = k.shopping.items.filter(i => !loose.includes(i));
+    shown.forEach(i => { if(marks[i.id]) logged[i.id] = true; });
+  });
+  toast(moved.length ? moved.join(', ') + ' moved to Past trips' : 'Trip saved. Your list is ready.');
+}
 /* enter-kitchen gate */
 let gate = 'gate';
 try{ if(sessionStorage.getItem('mb-in')) gate = 'in'; }catch(e){}
@@ -676,7 +701,7 @@ async function downloadBackup(){
 }
 function restoreTrip(at){
   const trip = (P().trips || []).find(x => x.at === at); if(!trip) return;
-  const ids = trip.rid ? [trip.rid] : recipes.filter(r => (trip.r || []).includes(D(r).short || D(r).title)).map(r => r.id);
+  const ids = trip.rids ? trip.rids : trip.rid ? [trip.rid] : recipes.filter(r => (trip.r || []).includes(D(r).short || D(r).title)).map(r => r.id);
   mutate(k => {
     const t = k.progress.trips || []; const i = t.findIndex(x => x.at === at); if(i < 0) return;
     const marks = k.progress.shop = k.progress.shop || {};
@@ -684,6 +709,7 @@ function restoreTrip(at){
     (t[i].items || []).forEach(it => {
       const item = (it.id && k.shopping.items.find(x => x.id === it.id)) || k.shopping.items.find(x => x.name === it.n && (!ids.length || (x.recipes || []).some(r => ids.includes(r))));
       if(item) marks[item.id] = it.s;
+      else if(it.c){ const nid = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); k.shopping.items.push({id: nid, name: it.n, qty: it.q || '', section: it.sec || 'Other', key: splitIngredient(it.n).key, recipes: [], custom: true}); marks[nid] = it.s; }
     });
     t.splice(i, 1);
   });
@@ -749,7 +775,6 @@ function renderAccount(){
     <div class="lbl2">Email</div><div>${esc(user.email)}</div>
     ${since ? `<div class="lbl2">Member since</div><div>${esc(since)}</div>` : ''}
     <div class="lbl2">What's saved</div><div>${recipes.length} recipe${recipes.length === 1 ? '' : 's'} · ${allItems().length} shopping list item${allItems().length === 1 ? '' : 's'}</div>
-    <div class="row" style="margin-top:18px"><button class="btn" data-act="signout">Exit kitchen</button></div>
   </div>
   <div class="card panel danger" style="margin-top:16px"><h3>Delete account</h3>
     <p style="margin:6px 0 12px">Permanently deletes your account, all your recipes and photos, your shopping list and your cooking progress. This can't be undone.</p>
@@ -777,7 +802,7 @@ function renderTerms(){
   return `<button class="back" data-act="go" data-h="${user ? 'recipes' : ''}">← Back</button>
   <div class="card panel prose"><h3>Terms of Use</h3>
     <p class="muted">Last updated November 13, 2026</p>
-    <p><b>Using Mixing Bowl.</b> Mixing Bowl is a free personal project for organizing recipes and shopping lists. It's for personal, non-commercial use, and you must be 13 or older to create an account.</p>
+    <p><b>Using Mixing Bowl.</b> Mixing Bowl is a free personal project for organizing recipes and shopping lists. It's for personal, non-commercial use and for ages 13 and up.</p>
     <p><b>Your content.</b> What you add is yours, and you're responsible for it. Only save content you have the right to use. Recipes saved from other websites still belong to their creators and are for your own personal use.</p>
     <p><b>Fair use of the site.</b> Don't upload anything illegal, harmful or abusive, and don't try to break, overload or misuse the site or other people's accounts.</p>
     <p><b>Provided as is.</b> Mixing Bowl is offered as is, without warranties of any kind. Features may change, and the site may be paused or shut down. Keep your own copy of anything important.</p>
@@ -795,7 +820,7 @@ function renderPrivacy(){
     <p><b>Photos.</b> Uploaded photos are stored at private, unguessable web addresses that aren't listed anywhere. Anyone with a photo's exact address could open it, so avoid uploading anything sensitive.</p>
     <p><b>Where it's stored.</b> Accounts and data are kept by Supabase, a database service. The website itself is hosted on GitHub Pages.</p>
     <p><b>Leaving.</b> You can delete your account at any time from <b>Account</b>, which permanently removes your account and everything you've saved.</p>
-    <p><b>Age.</b> Mixing Bowl is intended for people 13 and older. If you're under 13, please don't create an account.</p>
+    <p><b>Age.</b> Mixing Bowl is for ages 13 and up.</p>
     <p><b>Questions.</b> Email <a href="mailto:mixingbowl.admin@gmail.com">mixingbowl.admin@gmail.com</a>.</p>
   </div>`;
 }
@@ -855,14 +880,7 @@ document.addEventListener('click', async e => {
     return;
   }
   if(a === 'resetshop'){
-    const at = new Date().toISOString(), names = recipes.filter(r => isActive(r.id)).map(r => D(r).short || D(r).title);
-    confirmBox('Start a new trip?', 'Saves this trip to Past trips and clears your marks. Items stay on the list.', 'Start new trip', () => mutate(k => {
-      const marks = k.progress.shop || {};
-      const its = k.shopping.items.filter(i => marks[i.id]).map(i => ({n: i.name, q: i.qty || '', s: marks[i.id]}));
-      const t = k.progress.trips = k.progress.trips || [];
-      if(its.length && !(t[0] && t[0].at === at)){ t.unshift({at, r: names, items: its}); if(t.length > 60) t.length = 60; }
-      k.progress.shop = {};
-    }));
+    confirmBox('Start a new trip?', 'Finished recipes move to Past trips. Anything you still need stays on your list.', 'Start new trip', () => newTrip());
     return;
   }
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
