@@ -646,19 +646,49 @@ function enterKitchen(){
   }, Math.max(0, 1600 - (Date.now() - t0))); };
   go();
 }
-let isAdmin = false, adminData = null, adminBusy = false;
+let isAdmin = false, adminData = null, adminBusy = false, adminUsage = null;
 function renderAdmin(){
   const back = `<button class="back" data-act="go" data-h="shopping">← Back</button><h2 class="ptitle">Admin</h2>`;
   if(!isAdmin) return back + `<div class="card empty">This page is only for the site administrator.</div>`;
   if(!adminData && !adminBusy){
     adminBusy = true;
     sb.rpc('admin_users').then(({data, error}) => { adminBusy = false; adminData = error ? {err: true} : (data || []); render(); });
+    sb.rpc('admin_usage').then(({data, error}) => { adminUsage = error ? {err: true} : data; render(); }, () => {});
   }
   if(!adminData) return back + `<div class="card empty">Loading…</div>`;
   if(adminData.err) return back + `<div class="card empty">Couldn't load members.</div>`;
   const fmtD = t => t ? new Date(t).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}) : '—';
-  return back + `<div class="card panel"><h3>Members <small>${adminData.length}</small></h3>
+  return back + renderHealth() + `<div class="card panel"><h3>Members <small>${adminData.length}</small></h3>
     <div class="atable">${adminData.map(u => `<div class="arow"><div><b>${esc(u.name || '—')}</b><div class="muted">${esc(u.email)}</div></div><div class="muted">Joined ${fmtD(u.created_at)}<br>Last in ${fmtD(u.last_sign_in_at)}<br>${u.recipes} recipe${u.recipes == 1 ? '' : 's'}</div></div>`).join('')}</div></div>`;
+}
+function renderHealth(){
+  const u = adminUsage;
+  if(!u) return `<div class="card panel health"><h3>Site health</h3><div class="muted">Checking…</div></div>`;
+  if(u.err) return `<div class="card panel health"><h3>Site health</h3><div class="muted">Couldn't check usage right now.</div></div>`;
+  const MB = 1024 * 1024, mb = b => (b / MB < 10 ? (b / MB).toFixed(1) : Math.round(b / MB)) + ' MB';
+  const rows = [
+    ['Recipes & lists', u.db_bytes, 500 * MB, mb(u.db_bytes) + ' of 500 MB'],
+    ['Photos', u.storage_bytes, 1024 * MB, mb(u.storage_bytes) + ' of 1 GB'],
+    ['Members', u.users, 50000, u.users.toLocaleString() + ' of 50,000'],
+  ];
+  const days = u.last_active ? Math.floor((Date.now() - new Date(u.last_active)) / 864e5) : null;
+  const worst = Math.max(...rows.map(r => r[1] / r[2]));
+  const warn = worst >= .8 ? `<div class="hwarn red">Something is close to the free limit. Time to clean up or upgrade Supabase.</div>` : worst >= .6 ? `<div class="hwarn">Getting fuller. Keep an eye on it.</div>` : `<div class="hok">✓ Everything's well within the free limits.</div>`;
+  return `<div class="card panel health"><h3>Site health</h3>${warn}
+    ${rows.map(([n, v, max, label]) => { const p = Math.min(100, v / max * 100); return `<div class="hrow"><div class="hlbl"><span>${n}</span><span class="muted">${label}</span></div><div class="hbar ${p >= 80 ? 'red' : p >= 60 ? 'amber' : ''}"><i style="width:${Math.max(p, 1.5)}%"></i></div></div>`; }).join('')}
+    <div class="muted" style="font-size:13px;margin-top:6px">Last sign-in: ${days === null ? '—' : days === 0 ? 'today' : days + ' day' + (days === 1 ? '' : 's') + ' ago'}. Supabase pauses free sites after 7 quiet days.</div>
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="backup"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download backup</button></div>
+    <div class="muted" style="font-size:12.5px;margin-top:6px">Saves every member's recipes, lists and progress to a file. Photos aren't included.</div></div>`;
+}
+async function downloadBackup(){
+  toast('Preparing backup…');
+  const {data, error} = await sb.rpc('admin_backup');
+  if(error){ console.error(error); toast("Couldn't create the backup"); return; }
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'mixingbowl-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('Backup downloaded');
 }
 function renderTrips(){
   const trips = P().trips || [];
@@ -785,7 +815,8 @@ document.addEventListener('click', async e => {
   if(a === 'delopen'){ delOpen = true; render(); setTimeout(() => { const w = $('#del-word'); if(w) w.focus(); }, 50); return; }
   if(a === 'delclose'){ if(e.target.closest('[data-stop]') && el.classList.contains('modal')) return; delOpen = false; render(); return; }
   if(a === 'delconfirm'){ if((($('#del-word') || {}).value || '').trim().toUpperCase() !== 'DELETE'){ toast('Type DELETE to confirm'); return; } el.disabled = true; deleteAccount(); return; }
-  if(a === 'go'){ if(el.dataset.h === 'admin') adminData = null; location.hash = el.dataset.h; return; }
+  if(a === 'go'){ if(el.dataset.h === 'admin'){ adminData = null; adminUsage = null; } location.hash = el.dataset.h; return; }
+  if(a === 'backup'){ downloadBackup(); return; }
   if(a === 'authmode'){ authView = {mode: el.dataset.m, msg:'', err:'', busy:false}; render(); return; }
   if(a === 'bought'){ const v = shop[id] === 'bought' ? '' : 'bought'; mutate(k => { k.progress.shop[id] = v; }); return; }
   if(a === 'have'){ const v = shop[id] === 'have' ? '' : 'have'; mutate(k => { k.progress.shop[id] = v; }); return; }
