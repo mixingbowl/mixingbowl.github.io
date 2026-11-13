@@ -204,6 +204,11 @@ button.have{flex:none;border:1.5px solid var(--line);background:#fff;border-radi
 .picprev{width:160px;aspect-ratio:16/10;border-radius:12px;overflow:hidden;border:1px solid var(--line);flex:none}
 .picprev svg,.picprev img{display:block;width:100%;height:100%;object-fit:cover}
 .piccol{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.picwrap{position:relative;width:220px;max-width:100%}.picwrap .picprev{width:100%}
+.picbtn{position:absolute;right:8px;bottom:8px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#fff;border:2px solid #141414;box-shadow:0 2px 0 #141414;cursor:pointer;padding:0;color:#141414}
+.picbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.picbtn:hover{background:#141414;color:#fff}.picx{bottom:auto;top:8px}.picx:hover{background:var(--accent)}
+.lockable:disabled .picbtn{pointer-events:none}
 .cb{display:flex;gap:10px;align-items:center;margin-top:18px;font-weight:500}
 .cb input{width:20px;height:20px;accent-color:var(--accent)}
 .tile .art img,.hero .art img{display:block;width:100%;height:100%;object-fit:cover}
