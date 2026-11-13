@@ -129,7 +129,7 @@ function renderAuth(){
       <button class="btn primary big" type="submit">${v.busy ? 'Saving…' : 'Save password'}</button></form>
       ${v.err ? `<div class="err">${esc(v.err)}</div>` : ''}</div></div>`;
   }
-  const title = m === 'signup' ? 'Create your kitchen' : m === 'forgot' ? 'Reset your password' : 'Welcome to Mixing Bowl!';
+  const title = m === 'signup' ? 'Create your kitchen' : m === 'forgot' ? 'Reset your password' : 'Welcome to <span style="white-space:nowrap">Mixing Bowl!</span>';
   return `<div class="authwrap">
     <div class="authhero">${AUTH_ART}</div>
     <div class="card panel auth"><h2>${title}</h2>
