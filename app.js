@@ -266,8 +266,8 @@ function renderHeader(r){
 }
 function renderTabs(r){
   const left = visibleItems().filter(it => !P().shop[it.id]).length;
-  $('#tabs').innerHTML = `<button class="tab ${r.v === 'shopping' ? 'on' : ''}" data-act="go" data-h="shopping">Shopping list${left ? `<span class="n">${left}</span>` : ''}</button>
-  <button class="tab ${r.v !== 'shopping' && r.v !== 'account' ? 'on' : ''}" data-act="go" data-h="recipes">Recipes${recipes.filter(r => !isArch(r.id)).length ? `<span class="n">${recipes.filter(r => !isArch(r.id)).length}</span>` : ''}</button>`;
+  $('#tabs').innerHTML = `<button class="tab ${r.v === 'shopping' ? 'on' : ''}" data-act="go" data-h="shopping">Shopping list${left ? `<span class="n">(${left})</span>` : ''}</button>
+  <button class="tab ${r.v !== 'shopping' && r.v !== 'account' ? 'on' : ''}" data-act="go" data-h="recipes">Recipes${recipes.filter(r => !isArch(r.id)).length ? `<span class="n">(${recipes.filter(r => !isArch(r.id)).length})</span>` : ''}</button>`;
 }
 
 function renderShopping(){
@@ -704,9 +704,9 @@ function renderHealth(){
   const warn = worst >= .8 ? `<div class="hwarn red">Something is close to the free limit. Time to clean up or upgrade Supabase.</div>` : worst >= .6 ? `<div class="hwarn">Getting fuller. Keep an eye on it.</div>` : `<div class="hok">✓ Everything's well within the free limits.</div>`;
   return `<div class="card panel health"><h3>Site health</h3>${warn}
     ${rows.map(([n, v, max, label]) => { const p = Math.min(100, v / max * 100); return `<div class="hrow"><div class="hlbl"><span>${n}</span><span class="muted">${label}</span></div><div class="hbar ${p >= 80 ? 'red' : p >= 60 ? 'amber' : ''}"><i style="width:${Math.max(p, 1.5)}%"></i></div></div>`; }).join('')}
-    <div class="muted" style="font-size:13px;margin-top:6px">Last sign-in: ${days === null ? '—' : days === 0 ? 'today' : days + ' day' + (days === 1 ? '' : 's') + ' ago'}. Supabase pauses free sites after 7 quiet days.</div>
+    <div class="muted" style="font-size:14px;margin-top:6px">Last sign-in: ${days === null ? '—' : days === 0 ? 'today' : days + ' day' + (days === 1 ? '' : 's') + ' ago'}. Supabase pauses free sites after 7 quiet days.</div>
     <div class="row" style="margin-top:12px"><button class="btn" data-act="backup"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download backup</button></div>
-    <div class="muted" style="font-size:12.5px;margin-top:6px">Saves every member's recipes, lists and progress to a file. Photos aren't included.</div></div>`;
+    <div class="muted" style="font-size:12px;margin-top:6px">Saves every member's recipes, lists and progress to a file. Photos aren't included.</div></div>`;
 }
 async function downloadBackup(){
   toast('Preparing backup…');
