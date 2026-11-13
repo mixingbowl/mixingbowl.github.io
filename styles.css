@@ -200,3 +200,40 @@ main{max-width:980px;margin:0 auto;padding:18px 16px}
 .hero .art.photo{aspect-ratio:16/9;max-height:340px}
 .hero .art.photo img{height:100%}
 .form textarea{font-size:15.5px;line-height:1.5}
+
+/* ---- diner theme ---- */
+:root{--cream:#FBFAF7;--paper:#FFFFFF;--ink:#141414;--muted:#5E5A57;--line:#E3DFDA;--accent:#D7263D;--accent-soft:#FCE4E7;--green:#1F8A70;--green-soft:#DDF2EC;--gold:#B7862F;--gold-soft:#FBF0D7;--shadow:0 1px 2px rgba(0,0,0,.08),0 4px 14px rgba(0,0,0,.08)}
+body{background-color:#fff;background-image:conic-gradient(#141414 25%,#fff 0 50%,#141414 0 75%,#fff 0);background-size:48px 48px;background-attachment:fixed}
+h2,h3,.stephead,.section h3{font-family:'Archivo Black','DM Sans',system-ui,sans-serif;font-weight:400;letter-spacing:0}
+.top{background:#141414;border-bottom:4px solid var(--accent);backdrop-filter:none;-webkit-backdrop-filter:none}
+.brand h1{font-family:'Pacifico',cursive;font-weight:400;font-size:28px;color:#fff;line-height:1.4}
+.brand h1 span{color:#FF5468}
+.status{color:#cfcfcf}
+.tab{color:#a9a9a9}
+.tab.on{color:#fff;border-bottom-color:var(--accent)}
+.tab .n{background:var(--accent);color:#fff}
+.avatar{background:var(--accent);box-shadow:0 0 0 2px #fff}
+main{background:var(--cream);border:3px solid #141414;border-radius:20px;box-shadow:0 7px 0 #141414;margin:22px auto 30px;width:calc(100% - 28px)}
+@media(max-width:600px){main{width:calc(100% - 16px);margin:12px auto 24px;border-radius:16px;padding:14px 12px}}
+.card{border-color:#E3DFDA}
+.bar i{background:linear-gradient(90deg,#D7263D,#FF5468)}
+.btn.primary,.btn.on,.chip.fbtn.on{background:#141414;border-color:#141414;color:#fff}
+.btn.orig{background:var(--accent);border-color:var(--accent)}
+.btn.orig:hover{background:#B81E33}
+.tile{border:2px solid #141414;box-shadow:0 4px 0 #141414}
+.tile:hover{transform:translateY(-2px);box-shadow:0 6px 0 #141414}
+.addtile{border:2px dashed #141414;box-shadow:none;background:#fff}
+.addtile:hover{box-shadow:none}
+.addtile .plus{color:var(--accent)}
+.hero{border:2px solid #141414;box-shadow:0 5px 0 #141414}
+.step.cur{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.timer{background:#141414;border:2px solid #fff}
+.timer.ring{background:var(--accent)}
+.authwrap{padding-top:6px}
+.authhero{border:3px solid #141414;border-bottom:0}
+.auth{border:3px solid #141414;box-shadow:0 7px 0 #141414}
+.linkbtn{color:var(--accent)}
+.skeleton{background:linear-gradient(90deg,#eee,#f7f7f7,#eee);background-size:200% 100%}
+.brand{min-width:0}
+.brand h1{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media(max-width:600px){.brand h1{font-size:23px}.status span{display:none}}
