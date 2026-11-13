@@ -1,43 +1,161 @@
+// Cartoon recipe illustrations: outlined, shaded, with small props. 320x200 viewBox.
+const O = '#3B2A22';           // outline color
+const SW = 'stroke="' + O + '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"';
+const W = 'viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"';
+
+function cloth(bg, line){ // soft gingham tablecloth
+  return `<g class="cloth"><rect width="320" height="200" fill="${bg}"/>
+  <g opacity=".5" fill="${line}">${Array.from({length:9},(_,i)=>`<rect x="${i*40}" y="0" width="20" height="200" opacity=".35"/>`).join('')}${Array.from({length:6},(_,i)=>`<rect x="0" y="${i*40}" width="320" height="20" opacity=".35"/>`).join('')}</g></g>`;
+}
+function sparkle(x, y, s, c){ return `<path d="M${x} ${y-s}L${x+s*.28} ${y-s*.28}L${x+s} ${y}L${x+s*.28} ${y+s*.28}L${x} ${y+s}L${x-s*.28} ${y+s*.28}L${x-s} ${y}L${x-s*.28} ${y-s*.28}Z" fill="${c}"/>`; }
+function plate(cx, cy, rx, ry){
+  return `<ellipse cx="${cx}" cy="${cy+6}" rx="${rx+4}" ry="${ry+3}" fill="#000" opacity=".12"/>
+  <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#FFFFFF" ${SW}/>
+  <ellipse cx="${cx}" cy="${cy-2}" rx="${rx*.72}" ry="${ry*.66}" fill="#F3F0EA"/>`;
+}
+
 export function art(kind){
-  const W='viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"';
-  if(kind==='pie'){
-    let strips='';[-36,-12,12,36].forEach(o=>{strips+=`<rect x="${158+o-8}" y="40" width="16" height="130" rx="6" fill="#EBC27C" stroke="#C99449" stroke-width="2"/>`});
-    let strips2='';[-36,-12,12,36].forEach(o=>{strips2+=`<rect x="95" y="${103+o-8}" width="130" height="16" rx="6" fill="#E9BD74" stroke="#C99449" stroke-width="2"/>`});
-    let berries='';[[130,80],[188,92],[150,130],[200,128],[118,118],[172,70],[140,100],[178,112]].forEach(([x,y])=>berries+=`<circle cx="${x}" cy="${y}" r="7" fill="#5A63B0"/><circle cx="${x-2}" cy="${y-2}" r="2" fill="#8C93D6"/>`);
-    return `<svg ${W}><rect width="320" height="200" fill="#DDE4F6"/><circle cx="40" cy="30" r="5" fill="#5A63B0" opacity=".5"/><circle cx="285" cy="168" r="6" fill="#5A63B0" opacity=".5"/><circle cx="270" cy="40" r="4" fill="#5A63B0" opacity=".4"/>
-    <ellipse cx="160" cy="112" rx="98" ry="86" fill="#fff"/><ellipse cx="160" cy="112" rx="98" ry="86" fill="none" stroke="#C9D2EC" stroke-width="3"/>
-    <circle cx="160" cy="105" r="74" fill="#D49E54"/><circle cx="160" cy="105" r="70" fill="none" stroke="#B9823A" stroke-width="7" stroke-dasharray="6 5"/>
-    <clipPath id="pc"><circle cx="160" cy="105" r="60"/></clipPath><circle cx="160" cy="105" r="60" fill="#323A78"/>
-    <g clip-path="url(#pc)">${berries}${strips}${strips2}</g></svg>`;
-  }
-  if(kind==='lasagna'){
-    return `<svg ${W}><rect width="320" height="200" fill="#F8E2C9"/><circle cx="270" cy="40" r="22" fill="#F0C9A0"/><path d="M262 32c8-6 18 0 14 8" stroke="#6E9B5A" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <ellipse cx="160" cy="160" rx="120" ry="28" fill="#fff"/><ellipse cx="160" cy="160" rx="120" ry="28" fill="none" stroke="#EAD3B7" stroke-width="3"/>
-    <path d="M85 70 L190 52 L245 72 L140 92 Z" fill="#F4C55A"/>
-    <circle cx="150" cy="70" r="5" fill="#D9963A"/><circle cx="190" cy="66" r="4" fill="#D9963A"/><circle cx="210" cy="76" r="5" fill="#C9822E"/><path d="M160 60l8 4M120 75l7-3M200 58l6 5" stroke="#4F8A44" stroke-width="3" stroke-linecap="round"/>
-    <path d="M140 92 L245 72 L245 150 L140 170 Z" fill="#E9A64E"/>
-    <path d="M85 70 L140 92 L140 170 L85 148 Z" fill="#F2D49A"/>
-    <rect x="85" y="92" width="55" height="0" />
-    <path d="M85 92 L140 112 L140 120 L85 100 Z" fill="#E8862F"/>
-    <path d="M85 104 L140 124 L140 132 L85 112 Z" fill="#FFF8EC"/>
-    <circle cx="100" cy="112" r="3" fill="#5E9B4E"/><circle cx="122" cy="122" r="3" fill="#C2413A"/>
-    <path d="M85 118 L140 138 L140 144 L85 124 Z" fill="#F6DA9F"/>
-    <path d="M85 126 L140 146 L140 154 L85 134 Z" fill="#E8862F"/>
-    <path d="M85 136 L140 156 L140 164 L85 144 Z" fill="#FFF8EC"/>
-    <path d="M85 70 Q96 66 106 74 T128 82 T140 92" stroke="#F4C55A" stroke-width="6" fill="none"/>
+  if(kind === 'pie'){
+    const berries = [[128,86],[150,74],[176,80],[198,94],[118,108],[142,104],[168,100],[194,116],[132,126],[160,124],[184,134],[150,142]]
+      .map(([x,y]) => `<circle cx="${x}" cy="${y}" r="7.5" fill="#3E4A9E" ${SW.replace('2.2','1.4')}/><circle cx="${x-2.5}" cy="${y-2.5}" r="2.2" fill="#9AA6F0"/>`).join('');
+    const v = [124,148,172,196].map(x => `<path d="M${x} 52 C ${x-3} 100, ${x+3} 120, ${x} 158" stroke="#C9893F" stroke-width="15" stroke-linecap="round" fill="none"/><path d="M${x} 52 C ${x-3} 100, ${x+3} 120, ${x} 158" stroke="#F0C27A" stroke-width="11" stroke-linecap="round" fill="none"/>`).join('');
+    const h = [76,100,124,148].map(y => `<path d="M100 ${y} C 140 ${y-3}, 180 ${y+3}, 222 ${y}" stroke="#C9893F" stroke-width="15" stroke-linecap="round" fill="none"/><path d="M100 ${y} C 140 ${y-3}, 180 ${y+3}, 222 ${y}" stroke="#F4CB86" stroke-width="11" stroke-linecap="round" fill="none"/>`).join('');
+    const crimp = Array.from({length:28},(_,i)=>{const a=i/28*Math.PI*2;return `<circle cx="${(160+Math.cos(a)*74).toFixed(1)}" cy="${(105+Math.sin(a)*62).toFixed(1)}" r="9" fill="#E7B266" stroke="#B97A35" stroke-width="1.6"/>`}).join('');
+    return `<svg ${W}>${cloth('#DCE3F6','#9DAAD8')}
+      ${plate(160,112,124,82)}
+      <ellipse cx="160" cy="108" rx="92" ry="74" fill="#8E9BD3" ${SW}/>
+      <clipPath id="pieClip"><ellipse cx="160" cy="105" rx="68" ry="56"/></clipPath>
+      <ellipse cx="160" cy="105" rx="70" ry="58" fill="#2C2F6B"/>
+      <g clip-path="url(#pieClip)">${berries}${v}${h}
+        <path d="M118 90 C 128 80, 140 78, 150 82" stroke="#fff" stroke-width="3" opacity=".35" fill="none" stroke-linecap="round"/></g>
+      ${crimp}
+      <ellipse cx="160" cy="105" rx="70" ry="58" fill="none" stroke="${O}" stroke-width="2.2"/>
+      ${sparkle(250,46,7,'#fff')}${sparkle(64,150,5,'#fff')}${sparkle(268,150,4,'#fff')}
+      <g ${SW}><circle cx="278" cy="96" r="9" fill="#3E4A9E"/><circle cx="292" cy="108" r="8" fill="#3E4A9E"/><circle cx="276" cy="114" r="7" fill="#3E4A9E"/></g>
+      <circle cx="275" cy="93" r="2.4" fill="#9AA6F0"/><circle cx="289" cy="105" r="2.2" fill="#9AA6F0"/>
     </svg>`;
   }
-  if(kind==='cakepops'){
-    const pop=(x,y,c,s)=>{let sp='';s.forEach(([dx,dy,r,col])=>sp+=`<rect x="${x+dx}" y="${y+dy}" width="9" height="3" rx="1.5" fill="${col}" transform="rotate(${r} ${x+dx} ${y+dy})"/>`);return `<rect x="${x-3}" y="${y+18}" width="6" height="${150-y}" rx="3" fill="#F7F1E7" stroke="#E2D6C6"/><circle cx="${x}" cy="${y}" r="27" fill="${c}"/><circle cx="${x-9}" cy="${y-10}" r="7" fill="#fff" opacity=".35"/>${sp}`};
-    const S=[[-14,-6,30,'#F7C948'],[4,-14,-20,'#5AC8C8'],[10,4,60,'#7A5BD1'],[-6,10,-40,'#F25F5C'],[-18,6,10,'#5AC8C8'],[14,-4,20,'#F7C948']];
-    return `<svg ${W}><rect width="320" height="200" fill="#FADDE6"/><circle cx="40" cy="160" r="30" fill="#F7CAD8"/><circle cx="290" cy="30" r="24" fill="#F7CAD8"/>
-    ${pop(110,82,'#F27BA3',S)}${pop(160,62,'#FFF4EA',S)}${pop(210,86,'#B9A3EC',S)}
-    <rect x="70" y="150" width="180" height="40" rx="8" fill="#fff"/><rect x="70" y="150" width="180" height="10" rx="5" fill="#F1E6F0"/></svg>`;
+  if(kind === 'lasagna'){
+    const layer = (y, h, fill, wave) => `<path d="M96 ${y} q 10 -${wave} 20 0 t 20 0 t 20 0 t 20 0 t 20 0 t 14 0 L 210 ${y+h} L 96 ${y+h} Z" fill="${fill}"/>`;
+    return `<svg ${W}>${cloth('#FBE6CF','#F2B98A')}
+      ${plate(156,150,120,30)}
+      <g transform="translate(0,-6)">
+        <path d="M96 78 L 154 60 L 252 74 L 210 96 Z" fill="#F7C95C" ${SW}/>
+        <circle cx="150" cy="72" r="5" fill="#E2913C"/><circle cx="186" cy="70" r="4" fill="#E2913C"/><circle cx="214" cy="80" r="6" fill="#D57F2F"/><circle cx="170" cy="82" r="3.5" fill="#D57F2F"/>
+        <path d="M134 70 q 6 -6 14 -2 q -6 4 -14 2Z" fill="#4E8B47" ${SW.replace('2.2','1.2')}/><path d="M196 66 q 6 -6 14 -2 q -6 4 -14 2Z" fill="#4E8B47" ${SW.replace('2.2','1.2')}/>
+        <path d="M210 96 L 252 74 L 252 150 L 210 172 Z" fill="#E8A04A" ${SW}/>
+        <path d="M210 112 L 252 90" stroke="#C45A2A" stroke-width="5"/><path d="M210 132 L 252 110" stroke="#FFF6E3" stroke-width="5"/><path d="M210 152 L 252 130" stroke="#C45A2A" stroke-width="5"/>
+        <rect x="96" y="96" width="114" height="76" fill="#F2D49A"/>
+        ${layer(96,10,'#F5C651',3)}
+        ${layer(106,12,'#E36F2E',4)}
+        ${layer(118,8,'#FFF6E6',3)}
+        <circle cx="112" cy="122" r="3" fill="#5E9B4E"/><circle cx="140" cy="121" r="3" fill="#C2413A"/><circle cx="172" cy="123" r="3" fill="#5E9B4E"/><circle cx="196" cy="121" r="3" fill="#C2413A"/>
+        ${layer(126,10,'#F6DDA6',3)}
+        ${layer(136,12,'#E36F2E',4)}
+        ${layer(148,8,'#FFF6E6',3)}
+        ${layer(156,16,'#F2D49A',3)}
+        <path d="M96 78 L 96 172 L 210 172 L 210 96 Z" fill="none" ${SW}/>
+        <path d="M112 96 q 4 10 0 16" stroke="#E36F2E" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M168 96 q 3 8 0 13" stroke="#E36F2E" stroke-width="4" fill="none" stroke-linecap="round"/>
+      </g>
+      <g transform="rotate(-18 60 120)"><rect x="54" y="70" width="8" height="90" rx="4" fill="#C9CED6" ${SW}/><path d="M50 50 v 26 q 8 8 16 0 v -26" fill="none" ${SW}/><path d="M55 50 v 22 M61 50 v 22" ${SW}/></g>
+      ${sparkle(274,40,6,'#fff')}${sparkle(40,40,5,'#fff')}
+    </svg>`;
   }
-  if(kind==='cake')return `<svg ${W}><rect width="320" height="200" fill="#F6E6F0"/><ellipse cx="160" cy="168" rx="100" ry="16" fill="#fff"/><rect x="92" y="88" width="136" height="78" rx="10" fill="#7A4A35"/><rect x="92" y="112" width="136" height="10" fill="#F7E7D0"/><rect x="92" y="140" width="136" height="10" fill="#F7E7D0"/><path d="M92 96c10 14 20-6 30 8s20-8 30 6 20-8 30 6 20-8 30 6 10-8 16-4V88H92z" fill="#F7E7D0"/><circle cx="160" cy="78" r="10" fill="#D9334F"/><path d="M160 68c2-8 8-10 12-10" stroke="#3F7A55" stroke-width="3" fill="none"/></svg>`;
-  if(kind==='cookies'){let c='';[[115,110,'#C98A4B'],[200,95,'#B97A3E'],[165,140,'#D29A58']].forEach(([x,y,col])=>{c+=`<circle cx="${x}" cy="${y}" r="38" fill="${col}"/>`;[[-12,-10],[10,-14],[14,8],[-8,12],[0,-2]].forEach(([dx,dy])=>c+=`<circle cx="${x+dx}" cy="${y+dy}" r="5" fill="#4A2C1E"/>`)});return `<svg ${W}><rect width="320" height="200" fill="#F3E7D7"/>${c}</svg>`}
-  if(kind==='bread')return `<svg ${W}><rect width="320" height="200" fill="#EFE3CF"/><ellipse cx="160" cy="160" rx="110" ry="18" fill="#D9C4A3"/><path d="M70 150c0-60 40-90 90-90s90 30 90 90z" fill="#C98A4B"/><path d="M110 92l20 28M150 80l18 30M190 84l16 28" stroke="#E9B877" stroke-width="7" stroke-linecap="round"/></svg>`;
-  if(kind==='soup')return `<svg ${W}><rect width="320" height="200" fill="#E4EFE2"/><path d="M60 95h200a100 70 0 0 1-200 0z" fill="#fff"/><ellipse cx="160" cy="95" rx="100" ry="18" fill="#E2913F"/><circle cx="130" cy="92" r="5" fill="#3F7A55"/><circle cx="175" cy="98" r="4" fill="#3F7A55"/><path d="M130 60c-6-10 6-14 0-24M160 56c-6-10 6-14 0-24M190 60c-6-10 6-14 0-24" stroke="#9BB79A" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`;
-  if(kind==='pasta')return `<svg ${W}><rect width="320" height="200" fill="#F7E6D2"/><ellipse cx="160" cy="120" rx="110" ry="60" fill="#fff"/><path d="M90 120c20-40 60 30 80-10s50 20 60 0M95 135c30-30 50 25 80-5s40 15 55-5M110 105c20-20 40 20 60-5s40 10 50-5" stroke="#F0CF7A" stroke-width="7" fill="none" stroke-linecap="round"/><circle cx="140" cy="112" r="10" fill="#C2413A"/><circle cx="185" cy="122" r="9" fill="#C2413A"/></svg>`;
-  return `<svg ${W}><rect width="320" height="200" fill="#EFE6D8"/><path d="M80 90 h160 a80 70 0 0 1 -160 0z" fill="#D7A97A"/><ellipse cx="160" cy="90" rx="80" ry="12" fill="#B9875A"/><path d="M200 30 l-30 60" stroke="#8A7B6E" stroke-width="5" stroke-linecap="round"/><ellipse cx="208" cy="22" rx="10" ry="16" fill="none" stroke="#8A7B6E" stroke-width="4" transform="rotate(28 208 22)"/></svg>`;
+  if(kind === 'cakepops'){
+    const pop = (x, y, c, hi, sprinkles) => `
+      <path d="M${x} ${y+24} L ${x} 162" stroke="#EDE3D3" stroke-width="7" stroke-linecap="round"/><path d="M${x} ${y+24} L ${x} 162" stroke="${O}" stroke-width="1.6" stroke-dasharray="0" fill="none" opacity=".0"/>
+      <rect x="${x-3.5}" y="${y+22}" width="7" height="${140-y}" rx="3.5" fill="#F7F1E6" ${SW.replace('2.2','1.6')}/>
+      <circle cx="${x}" cy="${y}" r="28" fill="${c}" ${SW}/>
+      <path d="M${x-28} ${y+4} q 6 10 14 6 q 6 8 12 2 q 8 8 14 0 q 6 6 16 -6" fill="none" stroke="#fff" stroke-width="3" opacity=".55"/>
+      <ellipse cx="${x-10}" cy="${y-12}" rx="8" ry="5" fill="${hi}" transform="rotate(-30 ${x-10} ${y-12})"/>
+      ${sprinkles.map(([dx,dy,r,col]) => `<rect x="${x+dx}" y="${y+dy}" width="9" height="3.2" rx="1.6" fill="${col}" transform="rotate(${r} ${x+dx} ${y+dy})"/>`).join('')}
+      <path d="M${x-7} ${y+30} l 7 6 l 7 -6" fill="none" stroke="#E0457B" stroke-width="3" stroke-linecap="round"/>`;
+    const S = [[-14,-4,30,'#F7C948'],[4,-16,-20,'#41B6C4'],[10,4,60,'#7A5BD1'],[-6,10,-40,'#F25F5C'],[-18,8,10,'#41B6C4'],[14,-6,20,'#F7C948'],[0,-2,75,'#fff']];
+    return `<svg ${W}>${cloth('#FADDE7','#F2A9C1')}
+      <ellipse cx="160" cy="184" rx="108" ry="10" fill="#000" opacity=".12"/>
+      ${pop(104,86,'#F27BA3','#FFC7DA',S)}${pop(160,64,'#FFF4EA','#FFFFFF',S)}${pop(216,90,'#B9A3EC','#E1D6FF',S)}
+      <path d="M86 150 h 148 l -10 34 h -128 Z" fill="#FFFFFF" ${SW}/>
+      <path d="M86 150 h 148 v 8 h -148 Z" fill="#F4C7D6" ${SW}/>
+      <path d="M100 168 h 120" stroke="#F27BA3" stroke-width="3" stroke-dasharray="2 8" stroke-linecap="round"/>
+      ${sparkle(46,44,6,'#fff')}${sparkle(280,50,7,'#fff')}${sparkle(276,140,4,'#fff')}
+    </svg>`;
+  }
+  if(kind === 'cake'){
+    return `<svg ${W}>${cloth('#F6E5EF','#E7B5CC')}
+      ${plate(160,166,112,20)}
+      <path d="M92 92 v 66 q 68 14 136 0 v -66 Z" fill="#8A4F38" ${SW}/>
+      <path d="M92 116 q 68 12 136 0 v 10 q -68 12 -136 0 Z" fill="#FBEBD6"/>
+      <path d="M92 138 q 68 12 136 0 v 10 q -68 12 -136 0 Z" fill="#FBEBD6"/>
+      <ellipse cx="160" cy="92" rx="68" ry="14" fill="#FBEBD6" ${SW}/>
+      <path d="M92 92 q 0 14 10 16 q 4 14 10 0 q 10 4 16 -2 q 4 18 10 2 q 12 4 22 0 q 6 12 12 0 q 12 2 20 -4 q 4 10 10 0 q 8 0 20 -12" fill="#FBEBD6" ${SW}/>
+      <circle cx="160" cy="70" r="12" fill="#D7263D" ${SW}/><circle cx="156" cy="66" r="3.5" fill="#FF8C9A"/>
+      <path d="M160 58 q 4 -14 16 -18" fill="none" ${SW}/><path d="M176 40 q 10 2 12 10 q -10 0 -12 -10Z" fill="#4E8B47" ${SW.replace('2.2','1.4')}/>
+      ${[[118,96],[134,100],[188,99],[204,95],[146,88],[176,88]].map(([x,y],i)=>`<rect x="${x}" y="${y}" width="7" height="2.6" rx="1.3" fill="${['#F7C948','#41B6C4','#F25F5C','#7A5BD1','#41B6C4','#F7C948'][i]}" transform="rotate(${i*35} ${x} ${y})"/>`).join('')}
+      ${sparkle(56,52,6,'#fff')}${sparkle(270,46,7,'#fff')}
+    </svg>`;
+  }
+  if(kind === 'cookies'){
+    const cookie = (x, y, r, c) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" ${SW}/>
+      <path d="M${x-r*.5} ${y-r*.2} q ${r*.3} ${r*.15} ${r*.55} -${r*.05} M${x+r*.1} ${y+r*.45} q ${r*.2} -${r*.15} ${r*.45} 0" stroke="#A86A2F" stroke-width="2" fill="none" stroke-linecap="round"/>
+      ${[[-.45,-.45],[.35,-.5],[.5,.2],[-.2,.5],[-.6,.15],[.05,-.05]].map(([dx,dy])=>`<path d="M${x+dx*r-4} ${y+dy*r+3} q 4 -9 8 0 Z" fill="#4A2C1E"/>`).join('')}`;
+    return `<svg ${W}>${cloth('#F3E6D4','#E2C7A2')}
+      <ellipse cx="150" cy="172" rx="104" ry="14" fill="#000" opacity=".12"/>
+      ${cookie(110,128,42,'#D99A55')}${cookie(176,140,38,'#CF8C47')}${cookie(140,92,36,'#E0A562')}
+      <g ${SW}><path d="M232 60 h 46 l -6 112 h -34 Z" fill="#FFFFFF" opacity=".95"/><path d="M234 92 h 42 l -4 80 h -34 Z" fill="#F4F4F4"/></g>
+      <path d="M244 70 v 92" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+      <path d="M232 60 h 46" ${SW}/>
+      ${sparkle(52,46,6,'#fff')}${sparkle(296,40,5,'#fff')}
+      ${[[60,170],[210,180],[80,60]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="3" fill="#C88A48"/>`).join('')}
+    </svg>`;
+  }
+  if(kind === 'bread'){
+    return `<svg ${W}>${cloth('#EFE3CC','#D8C29C')}
+      <path d="M44 164 h 232 l -10 16 h -212 Z" fill="#B98A5B" ${SW}/><path d="M44 164 h 232" stroke="#8C6440" stroke-width="2"/>
+      <path d="M66 160 C 60 110, 100 70, 160 70 C 220 70, 260 110, 254 160 Z" fill="#C9853F" ${SW}/>
+      <path d="M80 150 C 78 116, 108 88, 160 86 C 212 88, 242 116, 240 150" fill="none" stroke="#E2A35E" stroke-width="8" opacity=".6" stroke-linecap="round"/>
+      ${[[110,92,128,122],[146,82,162,116],[184,86,198,120],[214,100,224,128]].map(([a,b,c,d])=>`<path d="M${a} ${b} Q ${(a+c)/2-6} ${(b+d)/2} ${c} ${d}" stroke="#F3D19A" stroke-width="9" fill="none" stroke-linecap="round"/><path d="M${a} ${b} Q ${(a+c)/2-6} ${(b+d)/2} ${c} ${d}" stroke="${O}" stroke-width="2" fill="none" stroke-linecap="round" opacity=".5"/>`).join('')}
+      <g transform="translate(266 62) rotate(18)"><path d="M0 0 v 70" ${SW}/>${[0,14,28,42].map(y=>`<ellipse cx="-7" cy="${y+6}" rx="5" ry="9" fill="#E4C06A" ${SW.replace('2.2','1.4')} transform="rotate(-25 -7 ${y+6})"/><ellipse cx="7" cy="${y+6}" rx="5" ry="9" fill="#E4C06A" ${SW.replace('2.2','1.4')} transform="rotate(25 7 ${y+6})"/>`).join('')}</g>
+      ${sparkle(46,48,6,'#fff')}
+    </svg>`;
+  }
+  if(kind === 'soup'){
+    return `<svg ${W}>${cloth('#E2EFE0','#AFD0AB')}
+      <path d="M118 52 c -10 -12 10 -18 0 -32 M160 46 c -10 -12 10 -18 0 -32 M202 52 c -10 -12 10 -18 0 -32" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".85"/>
+      <ellipse cx="160" cy="176" rx="96" ry="10" fill="#000" opacity=".12"/>
+      <path d="M58 90 h 204 c 0 48 -42 80 -102 80 s -102 -32 -102 -80 Z" fill="#FFFFFF" ${SW}/>
+      <path d="M70 112 c 20 40 160 40 180 0" stroke="#D7263D" stroke-width="5" fill="none" opacity=".75"/>
+      <ellipse cx="160" cy="90" rx="102" ry="20" fill="#FFFFFF" ${SW}/>
+      <ellipse cx="160" cy="92" rx="88" ry="14" fill="#E78F3C"/>
+      <ellipse cx="146" cy="88" rx="30" ry="5" fill="#F7B868" opacity=".8"/>
+      ${[[124,92],[178,96],[200,88]].map(([x,y])=>`<rect x="${x}" y="${y-5}" width="10" height="10" rx="2" fill="#F2CD86" ${SW.replace('2.2','1.4')}/>`).join('')}
+      ${[[140,96],[164,86],[188,94],[112,88]].map(([x,y])=>`<path d="M${x} ${y} q 4 -6 9 -1 q -4 5 -9 1Z" fill="#4E8B47"/>`).join('')}
+      <g transform="rotate(28 236 70)"><ellipse cx="236" cy="96" rx="10" ry="6" fill="#C9CED6" ${SW}/><rect x="233" y="30" width="6" height="64" rx="3" fill="#C9CED6" ${SW}/></g>
+    </svg>`;
+  }
+  if(kind === 'pasta'){
+    const swirl = Array.from({length:7},(_,i)=>`<path d="M${86+i*4} ${108+i*5} C ${120} ${70+i*6}, ${200} ${150-i*4}, ${234-i*4} ${100+i*6}" stroke="#F3D27E" stroke-width="6" fill="none" stroke-linecap="round"/>`).join('');
+    return `<svg ${W}>${cloth('#F8E5D0','#EDB98D')}
+      ${plate(160,124,126,62)}
+      <ellipse cx="160" cy="118" rx="88" ry="42" fill="#F0C863" ${SW}/>
+      <clipPath id="pastaClip"><ellipse cx="160" cy="118" rx="86" ry="40"/></clipPath>
+      <g clip-path="url(#pastaClip)">${swirl}${swirl.replace(/#F3D27E/g,'#E5B95A').replace(/stroke-width="6"/g,'stroke-width="2"')}</g>
+      <path d="M118 110 q 20 -16 44 -6 q 26 -12 44 8 q -10 16 -44 12 q -34 6 -44 -14Z" fill="#C8412F" opacity=".9"/>
+      ${[[134,110,13],[176,106,14],[156,126,12]].map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="#8E3B26" ${SW}/><circle cx="${x-4}" cy="${y-4}" r="3.5" fill="#C06A4C"/>`).join('')}
+      <path d="M190 90 q 10 -10 20 -2 q -10 8 -20 2Z" fill="#4E8B47" ${SW.replace('2.2','1.4')}/><path d="M200 84 v 8" stroke="#2F6A2B" stroke-width="1.5"/>
+      ${[[150,98],[168,120],[142,128],[186,116]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.8" fill="#FFF7E0"/>`).join('')}
+      <g transform="rotate(22 262 80)"><rect x="258" y="50" width="8" height="94" rx="4" fill="#C9CED6" ${SW}/><path d="M252 26 v 28 q 10 8 20 0 v -28" fill="none" ${SW}/><path d="M258 26 v 24 M266 26 v 24" ${SW}/></g>
+    </svg>`;
+  }
+  // mixing bowl (default)
+  return `<svg ${W}>${cloth('#EFE6D8','#D9C6A8')}
+    <ellipse cx="160" cy="176" rx="100" ry="10" fill="#000" opacity=".12"/>
+    ${[[70,60],[250,70],[86,150],[236,150],[120,40]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.4" fill="#fff" opacity=".9"/>`).join('')}
+    <g transform="rotate(-22 214 64)"><path d="M214 20 v 60" ${SW}/><path d="M214 80 c -18 10 -16 40 0 46 c 16 -6 18 -36 0 -46Z M214 80 c -8 10 -8 40 0 46 c 8 -6 8 -36 0 -46Z" fill="none" stroke="#9AA3AE" stroke-width="2.4"/><rect x="209" y="6" width="10" height="26" rx="5" fill="#D7263D" ${SW}/></g>
+    <path d="M58 96 h 204 c 0 46 -44 76 -102 76 s -102 -30 -102 -76 Z" fill="#7FB8C9" ${SW}/>
+    <path d="M74 118 c 24 36 148 36 172 0" stroke="#fff" stroke-width="5" fill="none" opacity=".5"/>
+    <ellipse cx="160" cy="96" rx="102" ry="20" fill="#9FD0DE" ${SW}/>
+    <ellipse cx="160" cy="98" rx="86" ry="13" fill="#F6E7C8"/>
+    <path d="M120 96 q 20 -8 40 0 t 40 0" stroke="#E9D2A4" stroke-width="3" fill="none"/>
+    ${sparkle(46,52,6,'#fff')}${sparkle(278,40,6,'#fff')}
+  </svg>`;
 }
