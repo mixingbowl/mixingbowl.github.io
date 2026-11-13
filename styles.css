@@ -397,3 +397,5 @@ h3,.panel h3,.section h3,.stephead,.tile h2{font-family:'Archivo Black','DM Sans
 .hero .art.drawn .artbg svg > :not(.cloth){display:none}
 /* custom dropdown arrow with breathing room */
 .addf select,select.tin{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:42px;background-color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23141414' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;background-size:15px 15px;cursor:pointer}
+
+.foot{text-align:center;margin:18px auto 28px}.foot span{display:inline-block;background:#141414;color:#fff;font-family:"DM Sans",system-ui,sans-serif;font-size:12px;letter-spacing:.02em;padding:5px 12px;border-radius:99px}
