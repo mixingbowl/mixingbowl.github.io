@@ -367,11 +367,12 @@ function renderForm(id){
   return `<button class="back" data-act="go" data-h="${r ? 'r-' + esc(r.id) : 'recipes'}">← ${r ? 'Back to recipe' : 'All recipes'}</button>
   <div class="card panel form">
     <h3>${r ? 'Edit recipe' : 'Add a recipe'}</h3>
-    <div class="lbl2">Recipe title <span class="req">required</span></div>
-    <input class="tin" id="f-title" data-keep maxlength="90" placeholder="e.g. Grandma's apple crisp" value="${v('title', d.title)}">
     <div class="lbl2">Recipe website link <span class="hint">optional</span></div>
     <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a link to import it automatically" value="${v('link', link.url)}">${r ? '' : `<button class="btn" type="button" data-act="import" ${f.importing ? 'disabled' : ''}>${f.importing ? 'Importing…' : 'Import'}</button>`}</div>
-    ${r ? '' : `${f.importMsg ? `<div class="importmsg ${f.importOk ? 'ok' : ''}">${esc(f.importMsg)}</div>` : ''}
+    ${!r && f.importMsg ? `<div class="importmsg ${f.importOk ? 'ok' : ''}">${esc(f.importMsg)}</div>` : ''}
+    <div class="lbl2">Recipe title <span class="req">required</span></div>
+    <input class="tin" id="f-title" data-keep maxlength="90" placeholder="e.g. Grandma's apple crisp" value="${v('title', d.title)}">
+    ${r ? '' : `
     <div class="lbl2">Paste the recipe <span class="req">${f.importOk ? 'not needed, it imported' : 'required if the link doesn\'t import'}</span></div>
     <textarea class="tin" id="f-paste" data-keep rows="6" placeholder="On the recipe website, tap Jump to Recipe (or Print), select the recipe text, copy it, and paste it here."></textarea>
     <div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-act="parse">✨ Fill in the form</button></div>`}
