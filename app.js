@@ -214,7 +214,7 @@ function route(){
   if(h.startsWith('r-')) return {v:'recipe', id:h.slice(2)};
   if(h.startsWith('edit-')) return {v:'form', id:h.slice(5)};
   if(h === 'add') return {v:'form'};
-  if(['recipes','account','settings','privacy','trips','admin','terms'].includes(h)) return {v:h};
+  if(['recipes','account','settings','privacy','trips','admin','terms','feedback'].includes(h)) return {v:h};
   return {v:'shopping'};
 }
 let lastView = '';
@@ -227,6 +227,7 @@ function render(){
   if(!sb){ return; }
   if(!user && r.v === 'privacy'){ app.innerHTML = renderPrivacy(); $('#tabs').innerHTML = ''; }
   else if(!user && r.v === 'terms'){ app.innerHTML = renderTerms(); $('#tabs').innerHTML = ''; }
+  else if(!user && r.v === 'feedback'){ app.innerHTML = renderFeedback(); $('#tabs').innerHTML = ''; }
   else if(!user || recovering){ app.innerHTML = renderAuth(); $('#tabs').innerHTML = ''; }
   else if(gate !== 'in'){ app.innerHTML = renderGate(); $('#tabs').innerHTML = ''; }
   else if(!loaded){ app.innerHTML = `<div class="grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`; }
@@ -239,6 +240,7 @@ function render(){
     else if(r.v === 'settings') app.innerHTML = renderSettings();
     else if(r.v === 'privacy') app.innerHTML = renderPrivacy();
     else if(r.v === 'terms') app.innerHTML = renderTerms();
+    else if(r.v === 'feedback') app.innerHTML = renderFeedback();
     else if(r.v === 'trips') app.innerHTML = renderTrips();
     else if(r.v === 'admin') app.innerHTML = renderAdmin();
     else app.innerHTML = renderRecipe(r.id);
@@ -715,7 +717,7 @@ function renderMenu(){
     <button role="menuitem" data-act="go" data-h="settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>Settings</button>
     <button role="menuitem" data-act="go" data-h="account"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Account</button>
     ${isAdmin ? `<button role="menuitem" data-act="go" data-h="admin"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>Admin</button>` : ''}
-    <a role="menuitem" class="mlink" href="mailto:mixingbowl.admin@gmail.com?subject=Mixing%20Bowl%20feedback"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></span>Send feedback</a>
+    <button role="menuitem" data-act="go" data-h="feedback"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></span>Send feedback</button>
     <button role="menuitem" data-act="go" data-h="privacy"><span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/><path d="M12 15v2.5"/></svg></span>Privacy</button>
     <button role="menuitem" class="out" data-act="signout"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M15 16l4-4-4-4"/><path d="M19 12H10"/></svg></span>Exit kitchen</button>
   </div>`;
@@ -757,6 +759,19 @@ function renderAccount(){
     <div class="muted">Deletes your account and data for good. Type <b>DELETE</b> to confirm.</div>
     <input class="tin" id="del-word" autocomplete="off" style="margin-top:12px" placeholder="DELETE">
     <div class="row"><button class="btn" data-act="delclose">Cancel</button><button class="btn dangerbtn" data-act="delconfirm">Delete forever</button></div></div></div>` : ''}`;
+}
+const FB_EMAIL = 'mixingbowl.admin@gmail.com';
+function renderFeedback(){
+  const su = encodeURIComponent('Mixing Bowl feedback');
+  return `<button class="back" data-act="go" data-h="${user ? 'recipes' : ''}">← Back</button>
+  <div class="card panel prose fb"><h3>Send feedback</h3>
+    <p>Ideas, bugs or questions? Email us at <b>${FB_EMAIL}</b>.</p>
+    <div class="fbbtns">
+      <a class="btn primary" href="https://mail.google.com/mail/?view=cm&fs=1&to=${FB_EMAIL}&su=${su}" target="_blank" rel="noopener">Open in Gmail</a>
+      <a class="btn" href="mailto:${FB_EMAIL}?subject=${su}">Open my email app</a>
+      <button class="btn" data-act="copyemail">Copy email address</button>
+    </div>
+  </div>`;
 }
 function renderTerms(){
   return `<button class="back" data-act="go" data-h="${user ? 'recipes' : ''}">← Back</button>
@@ -824,6 +839,7 @@ document.addEventListener('click', async e => {
   if(a === 'delconfirm'){ if((($('#del-word') || {}).value || '').trim().toUpperCase() !== 'DELETE'){ toast('Type DELETE to confirm'); return; } el.disabled = true; deleteAccount(); return; }
   if(a === 'go'){ if(el.dataset.h === 'admin'){ adminData = null; adminUsage = null; } location.hash = el.dataset.h; return; }
   if(a === 'backup'){ downloadBackup(); return; }
+  if(a === 'copyemail'){ try{ await navigator.clipboard.writeText(FB_EMAIL); toast('Email address copied'); }catch(err){ toast(FB_EMAIL); } return; }
   if(a === 'untrip'){ restoreTrip(el.dataset.at); return; }
   if(a === 'authmode'){ authView = {mode: el.dataset.m, msg:'', err:'', busy:false}; render(); return; }
   if(a === 'bought'){ const v = shop[id] === 'bought' ? '' : 'bought'; mutate(k => { k.progress.shop[id] = v; }); return; }
