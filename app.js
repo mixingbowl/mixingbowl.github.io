@@ -792,11 +792,7 @@ function renderFeedback(){
   return `<button class="back" data-act="go" data-h="${user ? 'recipes' : ''}">← Back</button>
   <div class="card panel prose fb"><h3>Send feedback</h3>
     <p>Ideas, bugs or questions? Email us at <b>${FB_EMAIL}</b>.</p>
-    <div class="fbbtns">
-      <a class="btn primary" href="https://mail.google.com/mail/?view=cm&fs=1&to=${FB_EMAIL}&su=${su}" target="_blank" rel="noopener">Open in Gmail</a>
-      <a class="btn" href="mailto:${FB_EMAIL}?subject=${su}">Open my email app</a>
-      <button class="btn" data-act="copyemail">Copy email address</button>
-    </div>
+    <div class="fbbtns"><button class="btn primary sm" data-act="copyemail">Copy email address</button></div>
   </div>`;
 }
 const TOUR = [
