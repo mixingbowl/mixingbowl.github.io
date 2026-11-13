@@ -368,15 +368,14 @@ function renderForm(id){
   <div class="card panel form">
     <h3>${r ? 'Edit recipe' : 'Add a recipe'}</h3>
     <div class="lbl2">Recipe website link <span class="hint">optional</span></div>
-    <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a link to import it automatically" value="${v('link', link.url)}">${r ? '' : `<button class="btn" type="button" data-act="import" ${f.importing ? 'disabled' : ''}>${f.importing ? 'Importing…' : 'Import'}</button>`}</div>
+    <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a recipe link" value="${v('link', link.url)}">${r ? '' : `<button class="btn" type="button" data-act="import" ${f.importing ? 'disabled' : ''}>${f.importing ? 'Importing…' : 'Import'}</button>`}</div>
     ${!r && f.importMsg ? `<div class="importmsg ${f.importOk ? 'ok' : ''}">${esc(f.importMsg)}</div>` : ''}
     <div class="lbl2">Recipe title <span class="req">required</span></div>
     <input class="tin" id="f-title" data-keep maxlength="90" placeholder="e.g. Grandma's apple crisp" value="${v('title', d.title)}">
     ${r ? '' : `
-    <div class="lbl2">Paste the recipe <span class="req">${f.importOk ? 'not needed, it imported' : 'required if the link doesn\'t import'}</span></div>
-    <textarea class="tin" id="f-paste" data-keep rows="6" placeholder="On the recipe website, tap Jump to Recipe (or Print), select the recipe text, copy it, and paste it here."></textarea>
-    <div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-act="parse">✨ Fill in the form</button></div>`}
-    ${!r && !f.filled ? `<div class="lockmsg">Import the link or paste the recipe and tap <b>Fill in the form</b>. The details below unlock once they're filled in.</div>` : ''}
+    ${f.importOk ? '' : `<div class="lbl2">Or paste the recipe</div>
+    <textarea class="tin" id="f-paste" data-keep rows="5" placeholder="Copy the recipe from the site and paste it here"></textarea>
+    <div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-act="parse"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Fill in the form</button></div>`}`}
     <fieldset class="lockable" ${!r && !f.filled ? 'disabled' : ''}>
     <div class="g4">
       <div><div class="lbl2">Serves / makes</div><input class="tin" id="f-yield" data-keep maxlength="40" value="${v('y', d.yield)}"></div>
@@ -384,19 +383,17 @@ function renderForm(id){
       <div><div class="lbl2">Cook time</div><input class="tin" id="f-cook" data-keep maxlength="40" value="${v('c', d.cook)}"></div>
       <div><div class="lbl2">Total time</div><input class="tin" id="f-total" data-keep maxlength="40" value="${v('t', d.total)}"></div>
     </div>
-    <div class="lbl2">Ingredients <span class="hint">one per line · end a line with ":" to start a group, like "For the crust:"</span></div>
+    <div class="lbl2">Ingredients</div>
     <textarea class="tin" id="f-ing" data-keep rows="9">${esc(groupsToIngText(d.ingredients))}</textarea>
-    <div class="lbl2">Steps <span class="hint">one per line · timers are added automatically when a step mentions minutes</span></div>
+    <div class="lbl2">Steps</div>
     <textarea class="tin" id="f-steps" data-keep rows="9">${esc(sectionsToStepText(d.steps))}</textarea>
-    <div class="lbl2">Notes <span class="hint">optional, one per line</span></div>
+    <div class="lbl2">Notes <span class="hint">optional</span></div>
     <textarea class="tin" id="f-notes" data-keep rows="3">${esc((d.notes || []).join('\n'))}</textarea>
-    <div class="lbl2">Picture <span class="hint">a drawing is picked from the recipe title</span></div>
-    <div class="picrow">
+    <div class="lbl2">Picture</div>
+    <div class="picwrap">
       <div class="picprev" id="f-pic">${photoNow ? `<img src="${esc(photoNow)}" alt="">` : art(guessArt(($('#f-title') || {}).value || d.title || ''))}</div>
-      <div class="piccol">
-        <label class="btn filebtn"><input type="file" id="f-photo" accept="image/*" hidden>📷 ${photoNow ? 'Change photo' : 'Upload your own photo'}</label>
-        ${photoNow ? `<button class="btn" type="button" data-act="rmphoto">Use the drawing instead</button>` : ''}
-      </div>
+      <label class="picbtn" title="Upload your own photo" aria-label="Upload your own photo"><input type="file" id="f-photo" accept="image/*" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></label>
+      ${photoNow ? `<button class="picbtn picx" type="button" data-act="rmphoto" title="Use the drawing" aria-label="Use the drawing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}
     </div>
     <label class="cb"><input type="checkbox" id="f-addlist" data-keep ${r ? '' : 'checked'}> ${r ? 'Add any new ingredients to my shopping list' : 'Add the ingredients to my shopping list'}</label>
     </fieldset>
@@ -427,12 +424,12 @@ async function importLink(){
     if(data && data.ingredients) p = data; else msg = (data && data.error) || '';
   }catch(err){ console.error(err); }
   form.importing = false;
-  if(!p){ form.importOk = false; form.importMsg = (/share that page/.test(msg) ? 'That site blocks automatic imports. ' : msg ? msg + ' ' : "Couldn't import from that site. ") + 'Paste the recipe below instead.'; render(); return; }
+  if(!p){ form.importOk = false; form.importMsg = (/share that page/.test(msg) ? "This site doesn't allow imports." : msg || "Couldn't import that link.") + ' Paste it below.'; render(); return; }
   const set = (id, val, force) => { const el = $(id); if(el && val && (force || !el.value.trim())) el.value = val; };
   set('#f-title', p.title); set('#f-yield', p.yield); set('#f-prep', p.prep); set('#f-cook', p.cook); set('#f-total', p.total);
   set('#f-ing', p.ingredients, true); set('#f-steps', p.steps, true); set('#f-notes', p.notes);
   if(p.title) $('#f-title').value = p.title;
-  form.filled = true; form.importOk = true; form.importMsg = 'Imported! Look it over before saving.'; render();
+  form.filled = true; form.importOk = true; form.importMsg = '✓ Imported'; render();
 }
 function guessArt(t){
   t = (t || '').toLowerCase();
