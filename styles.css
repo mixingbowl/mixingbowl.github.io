@@ -107,7 +107,7 @@ body.dragging #tripDrop{outline:2px dashed var(--accent);outline-offset:3px;anim
 .trips{display:grid;gap:12px}
 .tour{padding:0!important;overflow:hidden;max-width:380px!important}.tourart{height:120px;display:grid;place-items:center;background:var(--cream,#FBF6EC);border-bottom:2px dashed var(--line)}.tourico{width:68px;height:68px;fill:none;stroke:#141414;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.tourico .acc{fill:var(--accent);stroke:var(--accent)}.tourico .w{stroke:#fff}.tourico .accl{stroke:var(--accent)}
 .tourbody{padding:16px 20px 18px}.tour h3{font-size:21px;margin:8px 0 6px}.tour p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
-.tourdots{display:flex;gap:6px}.tourdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.tourdots i.on{background:var(--accent);width:22px;border-radius:5px}
+.tourdots{display:flex;gap:6px}.tourdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.tourdots i.on{background:var(--accent)}
 .tourbtns{justify-content:space-between!important;margin-top:18px!important}.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
 .help .hstep{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-top:1px dashed var(--line)}.help .hnum{flex:none;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800}
 .help h4{margin:2px 0 4px;font-size:16px}.help .hstep p{margin:0}.help .htips{margin-top:18px}.help ul{padding-left:18px;line-height:1.6}
