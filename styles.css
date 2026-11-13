@@ -27,6 +27,7 @@ h1,h2,h3{font-family:'Archivo Black','Inter',sans-serif;font-weight:400;letter-s
 .tab{flex:1;max-width:220px;border:0;background:none;padding:10px 6px 11px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;font-size:15px}
 .tab.on{color:var(--ink);border-bottom-color:var(--accent)}
 .tab .n{margin-left:5px;font-weight:400;color:inherit}
+.tabs{justify-content:flex-start;gap:28px;margin-top:6px;padding-left:2px}.tab{flex:none;max-width:none;padding:10px 0 16px;position:relative;border-bottom:0}.tab.on{border-bottom:0}.tab.on::after{content:'';position:absolute;left:0;right:0;bottom:9px;height:3px;border-radius:3px;background:var(--accent)}
 
 main{max-width:980px;margin:0 auto;padding:18px 16px}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
