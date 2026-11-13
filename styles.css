@@ -105,6 +105,12 @@ body.dragging #tripDrop{outline:2px dashed var(--accent);outline-offset:3px;anim
 .trip .tbody{padding:0 16px 14px}.trip h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:10px 0 4px}
 .trip ul{margin:0;padding-left:18px;font-size:15px;line-height:1.6}.tlist li{display:flex;align-items:center;gap:8px}.tlist li>span{flex:1}.readd{flex:none;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:#fff;font:700 16px/1 inherit;color:var(--accent);cursor:pointer;opacity:.45;transition:opacity .15s}.tlist li:hover .readd,.readd:focus{opacity:1;border-color:var(--accent)}@media (hover:hover){.readd{opacity:0}}.trip ul .q{color:var(--muted);font-size:13.5px}
 .trips{display:grid;gap:12px}
+.tour{padding:0!important;overflow:hidden;max-width:380px!important}.tourart{height:120px;display:grid;place-items:center;background:var(--cream,#FBF6EC);border-bottom:2px dashed var(--line)}.tourico{width:68px;height:68px;fill:none;stroke:#141414;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.tourico .acc{fill:var(--accent);stroke:var(--accent)}.tourico .w{stroke:#fff}.tourico .accl{stroke:var(--accent)}
+.tourbody{padding:16px 20px 18px}.tour h3{font-size:21px;margin:8px 0 6px}.tour p{margin:0;color:var(--muted);font-size:15px;line-height:1.5}
+.tourdots{display:flex;gap:6px}.tourdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.tourdots i.on{background:var(--accent);width:22px;border-radius:5px}
+.tourbtns{justify-content:space-between!important;margin-top:18px!important}.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.help .hstep{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-top:1px dashed var(--line)}.help .hnum{flex:none;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800}
+.help h4{margin:2px 0 4px;font-size:16px}.help .hstep p{margin:0}.help .htips{margin-top:18px}.help ul{padding-left:18px;line-height:1.6}
 .rsearch{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;margin-bottom:14px}.rsearch svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;opacity:.6;flex:none}.rsearch input{border:0;outline:0;background:transparent;font:inherit;font-size:15px;flex:1;min-width:0;padding:0}
 .tile[hidden],.arow[hidden]{display:none!important}
 .archbox{margin-top:16px;padding:0}.archbox>summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:8px;font-weight:700}.archbox>summary::-webkit-details-marker{display:none}.archbox>summary .chev{margin-left:auto;transition:transform .15s}.archbox[open]>summary .chev{transform:rotate(180deg)}
@@ -271,7 +277,7 @@ button.have{flex:none;border:1.5px solid var(--line);background:#fff;border-radi
 .auth{position:relative;padding:22px}
 .auth h2{font-size:26px}
 .auth form{display:grid;gap:10px}
-.btn.big{padding:12px 18px;font-size:16px;justify-content:center;font-weight:700}
+.btn.big{padding:12px 18px;font-size:16px;justify-content:center;font-weight:700}.btn.sm{padding:0 14px;font-size:13.5px;height:34px;flex:none;align-self:center}.btn.sm .bi{width:15px;height:15px}
 .authlinks{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:14px}
 .linkbtn{border:0;background:none;color:var(--accent);font-weight:700;padding:4px 0}
 .ok{margin-top:12px;color:var(--green);font-weight:500}
