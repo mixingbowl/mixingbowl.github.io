@@ -133,7 +133,7 @@ function renderAuth(){
   return `<div class="authwrap">
     <div class="authhero">${art('pie')}</div>
     <div class="card panel auth"><h2>${title}</h2>
-    <p class="muted" style="margin:4px 0 14px">${m === 'signup' ? 'Save recipes, build a shopping list, and follow along step by step on any device.' : m === 'forgot' ? "Enter your email and we'll send you a link." : 'Sign in to your recipes and shopping list.'}</p>
+    <p class="muted" style="margin:4px 0 14px">${m === 'signup' ? 'Save recipes, build a shopping list, and follow along step by step on any device.' : m === 'forgot' ? "Enter your email and we'll send you a link." : 'Sign in to view your recipes and shopping list.'}</p>
     <form data-form="${m}">
       ${m === 'signup' ? `<input class="tin" id="au-name" data-keep placeholder="First name" maxlength="40" required autocomplete="given-name">` : ''}
       <input class="tin" id="au-email" data-keep type="email" placeholder="Email" required autocomplete="email">
