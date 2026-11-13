@@ -175,7 +175,8 @@ async function handleAuthForm(kind){
 const R = id => recipes.find(r => r.id === id);
 const D = r => (r && r.data) || {};
 const P = () => kitchen.progress;
-const isActive = id => P().active[id] !== false;
+const isArch = id => !!(P().archived || {})[id];
+const isActive = id => P().active[id] !== false && !isArch(id);
 function stepList(d){ const out = []; (d.steps || []).forEach((sec, si) => (sec.items || []).forEach((st, k) => out.push({key: si + '-' + k, st}))); return out; }
 function cookOf(id){ const c = P().cook[id] || {}; return {i: c.i || {}, s: c.s || {}}; }
 function progressOf(r){ const all = stepList(D(r)); const c = cookOf(r.id); const done = all.filter(x => c.s[x.key]).length; return {total: all.length, done, cur: all.findIndex(x => !c.s[x.key]), all}; }
@@ -259,14 +260,14 @@ function renderHeader(r){
 function renderTabs(r){
   const left = visibleItems().filter(it => !P().shop[it.id]).length;
   $('#tabs').innerHTML = `<button class="tab ${r.v === 'shopping' ? 'on' : ''}" data-act="go" data-h="shopping">Shopping list${left ? `<span class="n">${left}</span>` : ''}</button>
-  <button class="tab ${r.v !== 'shopping' && r.v !== 'account' ? 'on' : ''}" data-act="go" data-h="recipes">Recipes${recipes.length ? `<span class="n">${recipes.length}</span>` : ''}</button>`;
+  <button class="tab ${r.v !== 'shopping' && r.v !== 'account' ? 'on' : ''}" data-act="go" data-h="recipes">Recipes${recipes.filter(r => !isArch(r.id)).length ? `<span class="n">${recipes.filter(r => !isArch(r.id)).length}</span>` : ''}</button>`;
 }
 
 function renderShopping(){
   const items = visibleItems(), all = allItems(), shop = P().shop, f = ui.filter;
   const done = items.filter(it => shop[it.id]).length;
   const pct = items.length ? Math.round(done / items.length * 100) : 0;
-  const chipRecipes = recipes.filter(r => !(P().done || {})[r.id]);
+  const chipRecipes = recipes.filter(r => !(P().done || {})[r.id] && !isArch(r.id));
   const chips = chipRecipes.map(r => `<button class="chip ${isActive(r.id) ? 'on' : ''}" style="--c:${esc(D(r).color || '#888')}" data-act="active" data-drag="1" data-id="${esc(r.id)}"><i class="sw"></i>${esc(D(r).short || D(r).title)}</button>`).join(' ');
   const pool = f === 'have' ? all : items;
   const keep = i => { const st = shop[i.id] || ''; return f === 'all' || (f === 'need' && !st) || (f === 'cart' && st === 'bought') || (f === 'have' && st === 'have'); };
@@ -311,14 +312,17 @@ function renderShopping(){
 function renderRecipes(){
   const addTile = `<button class="tile addtile" data-act="go" data-h="add"><span class="plus">+</span><span class="body"><h2>Add a recipe</h2><span class="meta">From a link or paste</span></span></button>`;
   const starters = !recipes.length ? `<div class="card panel" style="margin-bottom:16px"><h3>Start with a few favorites?</h3><p class="muted" style="margin:4px 0 12px">Blueberry pie, butternut squash lasagna and cake pops. Remove them anytime.</p><button class="btn primary" data-act="starters">Add starter recipes</button></div>` : '';
-  return starters + `<div class="grid">` + addTile + recipes.map(r => {
+  const live = recipes.filter(r => !isArch(r.id)), arch = recipes.filter(r => isArch(r.id));
+  const search = recipes.length > 1 ? `<div class="rsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="rsearch" type="search" placeholder="Search recipes" aria-label="Search recipes" autocomplete="off"></div>` : '';
+  const archBox = arch.length ? `<details class="card archbox" id="archbox"><summary>Archived <span class="fc">${arch.length}</span><span class="chev">▾</span></summary>${arch.map(r => `<div class="arow" data-q="${esc((D(r).title + ' ' + (D(r).short || '')).toLowerCase())}"><button class="aname" data-act="go" data-h="r-${esc(r.id)}"><i class="sw" style="--c:${esc(D(r).color || '#888')}"></i>${esc(D(r).title)}</button><button class="btn" data-act="unarch" data-id="${esc(r.id)}">Unarchive</button></div>`).join('')}</details>` : '';
+  return starters + search + `<div class="grid" id="rgrid">` + addTile + live.map(r => {
     const d = D(r), p = progressOf(r), pct = p.total ? Math.round(p.done / p.total * 100) : 0;
     const st = p.done === 0 ? 'Not started' : p.done === p.total ? 'Finished ✓' : `Step ${p.cur + 1} of ${p.total}`;
-    return `<div class="tile" role="link" tabindex="0" style="--c:${esc(d.color)}" data-act="go" data-h="r-${esc(r.id)}">
-      <span class="art">${pic(d)}</span><button class="tilex" data-act="delrecipe" data-id="${esc(r.id)}" aria-label="Delete ${esc(d.title)}" title="Delete recipe"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    return `<div class="tile" role="link" tabindex="0" style="--c:${esc(d.color)}" data-act="go" data-h="r-${esc(r.id)}" data-q="${esc((d.title + ' ' + (d.short || '')).toLowerCase())}">
+      <span class="art">${pic(d)}</span><button class="tilex" data-act="recipex" data-id="${esc(r.id)}" aria-label="Archive or delete ${esc(d.title)}" title="Archive or delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <span class="body"><h2>${esc(d.title)}</h2><span class="meta">${d.total ? `<span>⏱ ${esc(d.total)}</span>` : ''}${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}</span>
       <span class="st">${st}</span><span class="bar"><i style="width:${pct}%"></i></span></span></div>`;
-  }).join('') + `</div>`;
+  }).join('') + `</div><div class="card empty" id="rnone" hidden>No recipes match.</div>` + archBox;
 }
 
 function renderRecipe(id){
@@ -341,7 +345,7 @@ function renderRecipe(id){
     ${links ? `<div class="row src">${links}</div>` : ''}
     <div class="prog-line" style="margin-top:0"><b>${p.total && p.done === p.total ? 'All done — enjoy!' : `${p.done} of ${p.total} steps done`}</b><span class="muted">${pct}%</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row" style="margin-top:12px">${(P().done || {})[r.id] ? `<button class="btn" data-act="relist" data-id="${esc(r.id)}"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Add to shopping list</button>` : ''}<button class="btn ${wakeLock ? 'on' : ''}" data-act="wake"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>${wakeLock ? 'Screen staying on' : 'Keep screen on'}</button><button class="btn" data-act="go" data-h="edit-${esc(r.id)}">Edit recipe</button><button class="btn" data-act="resetrecipe" data-id="${esc(r.id)}">Reset progress</button></div>
+    <div class="row" style="margin-top:12px">${isArch(r.id) ? `<button class="btn primary" data-act="unarch" data-id="${esc(r.id)}">Unarchive</button>` : ''}${(P().done || {})[r.id] && !isArch(r.id) ? `<button class="btn" data-act="relist" data-id="${esc(r.id)}"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Add to shopping list</button>` : ''}<button class="btn ${wakeLock ? 'on' : ''}" data-act="wake"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>${wakeLock ? 'Screen staying on' : 'Keep screen on'}</button><button class="btn" data-act="go" data-h="edit-${esc(r.id)}">Edit recipe</button><button class="btn" data-act="resetrecipe" data-id="${esc(r.id)}">Reset progress</button>${isArch(r.id) ? '' : `<button class="btn" data-act="recipex" data-id="${esc(r.id)}">Archive or delete</button>`}</div>
   </div></div>
   <div class="layout">
     <div class="card panel ing-col"><h3>Ingredients</h3>${ings || '<div class="muted">No ingredients yet.</div>'}</div>
@@ -718,20 +722,20 @@ function restoreTrip(at){
 }
 function renderTrips(){
   const trips = P().trips || [];
-  const list = (arr) => `<ul>${arr.map(i => `<li>${esc(i.n)}${i.q ? ` <span class="q">· ${esc(fmt(i.q))}</span>` : ''}</li>`).join('')}</ul>`;
+  const list = (arr) => `<ul class="tlist">${arr.map(i => `<li><span>${esc(i.n)}${i.q ? ` <span class="q">· ${esc(fmt(i.q))}</span>` : ''}</span><button class="readd" data-act="readd" data-iid="${esc(i.id || '')}" data-n="${esc(i.n)}" data-q="${esc(i.q || '')}" title="Add to list" aria-label="Add ${esc(i.n)} to list">+</button></li>`).join('')}</ul>`;
   const days = [];
   trips.forEach(t => { const key = new Date(t.at).toDateString(); const g = days.find(x => x.key === key); if(g) g.trips.push(t); else days.push({key, trips: [t]}); });
   const body = days.map((g, n) => {
     const d = new Date(g.trips[0].at), all = g.trips.flatMap(t => t.items || []);
-    const got = all.filter(i => i.s === 'bought').length, had = all.filter(i => i.s === 'have').length;
     const names = [...new Set(g.trips.flatMap(t => t.r || []))];
     const when = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric'});
-    const parts = g.trips.map(t => {
-      const gt = (t.items || []).filter(i => i.s === 'bought'), hd = (t.items || []).filter(i => i.s === 'have');
-      return `<div class="tpart">${g.trips.length > 1 ? `<div class="tname">${esc((t.r || []).join(', ') || 'Shopping trip')}</div>` : ''}${gt.length ? `<h4>Bought</h4>${list(gt)}` : ''}${hd.length ? `<h4>Already had</h4>${list(hd)}` : ''}${!gt.length && !hd.length ? '<div class="muted" style="font-size:14px">Nothing was marked.</div>' : ''}<div class="row" style="margin-top:10px"><button class="btn" data-act="untrip" data-at="${esc(t.at)}"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Back to shopping list</button></div></div>`;
-    }).join('');
-    return `<details class="card trip" ${n === 0 ? 'open' : ''}><summary><div><b>${esc(when)}</b><div class="muted">${got} bought · ${had} already had${names.length ? ' · ' + esc(names.join(', ')) : ''}</div></div><span class="chev">▾</span></summary>
-      <div class="tbody">${parts}</div></details>`;
+    const seen = new Map(); all.forEach(i => { const key = i.id || i.n; if(!seen.has(key)) seen.set(key, i); });
+    const uniq = [...seen.values()], gt = uniq.filter(i => i.s === 'bought'), hd = uniq.filter(i => i.s === 'have');
+    const ats = g.trips.map(t => t.at).join('|');
+    return `<details class="card trip" ${n === 0 ? 'open' : ''}><summary><div><b>${esc(when)}</b><div class="muted">${gt.length} bought · ${hd.length} already had</div></div><span class="chev">▾</span></summary>
+      <div class="tbody">${names.length ? `<div class="tname">${esc(names.join(', '))}</div>` : ''}
+      ${uniq.length ? `<details class="tings"><summary>See ingredients</summary>${gt.length ? `<h4>Bought</h4>${list(gt)}` : ''}${hd.length ? `<h4>Already had</h4>${list(hd)}` : ''}</details>` : '<div class="muted" style="font-size:14px">Nothing was marked.</div>'}
+      <div class="row" style="margin-top:12px"><button class="btn" data-act="untrip" data-at="${esc(ats)}"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Back to shopping list</button></div></div></details>`;
   }).join('');
   return `<button class="back" data-act="go" data-h="shopping">← Shopping list</button>
   <h2 class="ptitle">Past trips</h2>
@@ -865,7 +869,19 @@ document.addEventListener('click', async e => {
   if(a === 'go'){ if(el.dataset.h === 'admin'){ adminData = null; adminUsage = null; } location.hash = el.dataset.h; return; }
   if(a === 'backup'){ downloadBackup(); return; }
   if(a === 'copyemail'){ try{ await navigator.clipboard.writeText(FB_EMAIL); toast('Email address copied'); }catch(err){ toast(FB_EMAIL); } return; }
-  if(a === 'untrip'){ restoreTrip(el.dataset.at); return; }
+  if(a === 'readd'){
+    const iid = el.dataset.iid, nm = el.dataset.n, q = el.dataset.q;
+    mutate(k => {
+      const marks = k.progress.shop = k.progress.shop || {};
+      const ex = (iid && k.shopping.items.find(i => i.id === iid)) || k.shopping.items.find(i => i.name === nm);
+      const shows = ex && (!(ex.recipes || []).some(x => R(x)) || ex.recipes.some(x => R(x) && k.progress.active[x] !== false && !(k.progress.done || {})[x]));
+      if(shows){ delete marks[ex.id]; return; }
+      const nid = 'c-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      k.shopping.items.push({id: nid, name: nm, qty: q, section: (ex && ex.section) || 'Other', key: splitIngredient(nm).key, recipes: [], custom: true});
+    });
+    toast(nm + ' added to list'); return;
+  }
+  if(a === 'untrip'){ el.dataset.at.split('|').forEach(at => restoreTrip(at)); return; }
   if(a === 'authmode'){ authView = {mode: el.dataset.m, msg:'', err:'', busy:false}; render(); return; }
   if(a === 'bought'){ const v = shop[id] === 'bought' ? '' : 'bought'; mutate(k => { k.progress.shop[id] = v; }); return; }
   if(a === 'have'){ const v = shop[id] === 'have' ? '' : 'have'; mutate(k => { k.progress.shop[id] = v; }); return; }
@@ -886,6 +902,11 @@ document.addEventListener('click', async e => {
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
   if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; }); return; }
   if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { k.progress.cook[id] = {i:{}, s:{}}; })); return; }
+  if(a === 'recipex'){ const r = R(id); if(!r) return;
+    $('#modalRoot').innerHTML = `<div class="modal" data-act="mclose"><div class="card" data-stop><h3>${esc(D(r).title)}</h3><div class="muted">Archive hides it until you want it again. Delete removes it for good.</div><div class="row"><button class="btn" data-act="mclose">Cancel</button><button class="btn" data-act="archive" data-id="${esc(id)}">Archive</button><button class="btn dangerbtn" data-act="delrecipe" data-id="${esc(id)}">Delete</button></div></div></div>`;
+    return; }
+  if(a === 'archive'){ $('#modalRoot').innerHTML = ''; const r = R(id); mutate(k => { (k.progress.archived = k.progress.archived || {})[id] = true; }); toast(D(r).title + ' archived'); if(location.hash !== '#recipes') location.hash = 'recipes'; return; }
+  if(a === 'unarch'){ const r = R(id); mutate(k => { if(k.progress.archived) delete k.progress.archived[id]; }); toast(D(r).title + ' is back'); return; }
   if(a === 'delrecipe'){ const r = R(id); confirmBox('Delete this recipe?', 'Deletes ' + D(r).title + ', its photo, progress and list items only it needed. Can\'t be undone.', 'Delete recipe', () => deleteRecipe(id)); return; }
   if(a === 'starters'){ el.disabled = true; addStarters(); return; }
   if(a === 'parse'){ fillFromPaste(); return; }
@@ -919,6 +940,14 @@ document.addEventListener('click', async e => {
   }
 });
 document.addEventListener('input', e => {
+  if(e.target.id === 'rsearch'){
+    const q = e.target.value.trim().toLowerCase(); let n = 0;
+    document.querySelectorAll('#rgrid .tile[data-q]').forEach(t => { const m = !q || t.dataset.q.includes(q); t.hidden = !m; if(m) n++; });
+    const add = $('#rgrid .addtile'); if(add) add.hidden = !!q;
+    let an = 0; document.querySelectorAll('#archbox .arow').forEach(t => { const m = !q || t.dataset.q.includes(q); t.hidden = !m; if(m) an++; });
+    const ab = $('#archbox'); if(ab){ ab.hidden = !!q && !an; if(q && an) ab.open = true; }
+    const none = $('#rnone'); if(none) none.hidden = !q || n + an > 0;
+  }
   if(e.target.id === 'f-title'){ const p = $('#f-pic'); if(p && !p.querySelector('img')) p.innerHTML = art(guessArt(e.target.value)); }
 });
 document.addEventListener('paste', e => {
