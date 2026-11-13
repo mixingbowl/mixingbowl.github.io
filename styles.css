@@ -99,6 +99,7 @@ body.dragging #tripDrop{outline:2px dashed var(--accent);outline-offset:3px;anim
 .copyic{position:absolute;top:10px;right:10px;width:40px;height:40px;display:grid;place-items:center;border:1.5px solid #141414;border-radius:10px;background:#fff;box-shadow:0 2px 0 #141414;padding:0;color:#141414}
 .copyic .bi{width:20px;height:20px}.copyic:active{transform:translateY(2px);box-shadow:none}
 .shop-head > .lbl:first-of-type{padding-right:48px}
+.shop-head > .copyic + *{padding-right:50px}
 .trip{padding:0}.trip summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;gap:10px;align-items:center}.trip summary::-webkit-details-marker{display:none}
 .trip summary b{font-size:16px}.trip summary .muted{font-size:13.5px}.trip summary .chev{margin-left:auto;transition:transform .15s}.trip[open] summary .chev{transform:rotate(180deg)}
 .trip .tbody{padding:0 16px 14px}.trip h4{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:10px 0 4px}
