@@ -142,7 +142,8 @@ function renderAuth(){
     ${v.err ? `<div class="err">${esc(v.err)}</div>` : ''}${v.msg ? `<div class="ok">${esc(v.msg)}</div>` : ''}
     <div class="authlinks">
       ${m !== 'signin' ? `<button class="linkbtn" data-act="authmode" data-m="signin">I have an account — sign in</button>` : `<button class="linkbtn" data-act="authmode" data-m="signup">New here? Create an account</button><button class="linkbtn" data-act="authmode" data-m="forgot">Forgot password?</button>`}
-    </div></div></div>`;
+    </div>
+    <p class="authnote">Your recipes and lists are private to your account. <a href="#privacy">How your data is kept</a></p></div></div>`;
 }
 async function handleAuthForm(kind){
   const email = ($('#au-email') || {}).value, pass = ($('#au-pass') || {}).value;
@@ -211,7 +212,7 @@ function route(){
   if(h.startsWith('r-')) return {v:'recipe', id:h.slice(2)};
   if(h.startsWith('edit-')) return {v:'form', id:h.slice(5)};
   if(h === 'add') return {v:'form'};
-  if(h === 'recipes' || h === 'account') return {v:h};
+  if(['recipes','account','settings','privacy'].includes(h)) return {v:h};
   return {v:'shopping'};
 }
 let lastView = '';
@@ -222,7 +223,8 @@ function render(){
   const r = route();
   $('#hdr').innerHTML = renderHeader(r);
   if(!sb){ return; }
-  if(!user || recovering){ app.innerHTML = renderAuth(); $('#tabs').innerHTML = ''; }
+  if(!user && r.v === 'privacy'){ app.innerHTML = renderPrivacy(); $('#tabs').innerHTML = ''; }
+  else if(!user || recovering){ app.innerHTML = renderAuth(); $('#tabs').innerHTML = ''; }
   else if(!loaded){ app.innerHTML = `<div class="grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`; }
   else {
     renderTabs(r);
@@ -230,6 +232,8 @@ function render(){
     else if(r.v === 'recipes') app.innerHTML = renderRecipes();
     else if(r.v === 'form') app.innerHTML = renderForm(r.id);
     else if(r.v === 'account') app.innerHTML = renderAccount();
+    else if(r.v === 'settings') app.innerHTML = renderSettings();
+    else if(r.v === 'privacy') app.innerHTML = renderPrivacy();
     else app.innerHTML = renderRecipe(r.id);
   }
   const sameView = (r.v + (r.id || '')) === lastView;
@@ -242,7 +246,7 @@ function render(){
 function renderHeader(r){
   const n = firstName();
   const title = user && n ? `${esc(n)}'s <span>Kitchen</span>` : `Mixing <span>Bowl</span>`;
-  return `<h1>${title}</h1><div class="hright">${user && !recovering ? `<div id="status" class="status ${statusNow.kind}"><i class="dot"></i><span>${esc(statusNow.text)}</span></div><button class="avatar" data-act="go" data-h="account" aria-label="Account">${esc((n || (user.email || '?'))[0].toUpperCase())}</button>` : ''}</div>`;
+  return `<h1>${title}</h1><div class="hright">${user && !recovering ? `<div id="status" class="status ${statusNow.kind}"><i class="dot"></i><span>${esc(statusNow.text)}</span></div><button class="avatar" data-act="menu" aria-label="Your menu" aria-expanded="${menuOpen}">${esc((n || (user.email || '?'))[0].toUpperCase())}</button>${menuOpen ? renderMenu() : ''}` : ''}</div>`;
 }
 function renderTabs(r){
   const left = visibleItems().filter(it => !P().shop[it.id]).length;
@@ -321,7 +325,7 @@ function renderRecipe(id){
   const links = (d.links || []).filter(l => /^https?:\/\//i.test(l.url || '')).map(l => `<a class="btn orig" href="${esc(l.url)}" target="_blank" rel="noopener">📖 ${esc(l.label || 'Original recipe')} ↗</a>`).join('');
   const notes = d.notes && d.notes.length ? `<div class="notes"><b>Good to know</b><ul>${d.notes.map(x => `<li>${fmt(x)}</li>`).join('')}</ul></div>` : '';
   return `<button class="back" data-act="go" data-h="recipes">← All recipes</button>
-  <div class="card hero"><div class="art ${d.photo ? 'photo' : ''}">${pic(d)}</div><div class="body">
+  <div class="card hero"><div class="art ${d.photo ? 'photo' : ''}">${pic(d)}<label class="photobtn">${photoBusy === r.id ? 'Uploading…' : d.photo ? '📷 Change photo' : '📷 Add your photo'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label>${d.photo ? `<button class="photobtn photorm" data-act="heroart" data-id="${esc(r.id)}">Use drawing</button>` : ''}</div><div class="body">
     <h2>${esc(d.title)}</h2>
     <div class="meta">${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}${d.prep ? `<span>Prep ${esc(d.prep)}</span>` : ''}${d.cook ? `<span>Cook ${esc(d.cook)}</span>` : ''}${d.total ? `<span>⏱ Total ${esc(d.total)}</span>` : ''}</div>
     ${links ? `<div class="row src">${links}</div>` : ''}
@@ -496,18 +500,81 @@ async function deleteRecipe(id){
 }
 
 /* ---------------- account ---------------- */
-function renderAccount(){
+async function deleteAccount(){
+  try{
+    setStatus('busy', 'Deleting…');
+    queue = []; clearTimeout(flushT);
+    const {data: files} = await sb.storage.from('photos').list(user.id, {limit: 1000});
+    if(files && files.length) await sb.storage.from('photos').remove(files.map(f => user.id + '/' + f.name));
+    const {error} = await sb.rpc('delete_my_account');
+    if(error) throw error;
+    delOpen = false;
+    await sb.auth.signOut();
+    location.hash = '';
+    authView = {mode:'signin', msg:'Your account and all your data have been deleted.', err:'', busy:false};
+    render();
+  }catch(e){
+    console.error(e); setStatus('err', 'Not deleted');
+    toast("Couldn't delete your account. Try again in a minute.");
+    const b = document.querySelector('[data-act="delconfirm"]'); if(b) b.disabled = false;
+  }
+}
+let menuOpen = false, delOpen = false, photoBusy = null;
+function renderMenu(){
+  return `<div class="umenu" role="menu">
+    <div class="umhead"><b>${esc(firstName() || 'Your kitchen')}</b><span>${esc(user.email)}</span></div>
+    <button role="menuitem" data-act="go" data-h="settings"><span class="ic">⚙</span>Settings</button>
+    <button role="menuitem" data-act="go" data-h="account"><span class="ic">◉</span>Account</button>
+    <button role="menuitem" data-act="go" data-h="privacy"><span class="ic">🔒</span>Privacy</button>
+    <button role="menuitem" class="out" data-act="signout"><span class="ic">↩</span>Log out</button>
+  </div>`;
+}
+function renderSettings(){
   return `<button class="back" data-act="go" data-h="recipes">← Back</button>
-  <div class="card panel"><h3>Your account</h3>
-    <div class="lbl2">Your name</div>
-    <form data-form="name" class="row"><input class="tin" id="acc-name" data-keep style="flex:1;min-width:160px" value="${esc(firstName())}" maxlength="40"><button class="btn" type="submit">Save</button></form>
-    <div class="lbl2">Email</div><div>${esc(user.email)}</div>
-    <div class="row" style="margin-top:18px"><button class="btn" data-act="signout">Sign out</button></div>
+  <div class="card panel"><h3>Settings</h3>
+    <div class="lbl2">Your name <span class="hint">shown at the top as “Name's Kitchen”</span></div>
+    <form data-form="name" class="row"><input class="tin" id="acc-name" data-keep style="flex:1;min-width:160px" value="${esc(firstName())}" maxlength="40" required><button class="btn primary" type="submit">Save name</button></form>
+  </div>
+  <div class="card panel" style="margin-top:16px"><h3>Change password</h3>
+    <form data-form="password" class="stack" autocomplete="off">
+      <input class="tin" id="pw-cur" type="password" placeholder="Current password" required autocomplete="current-password">
+      <input class="tin" id="pw-new" type="password" placeholder="New password (6+ characters)" minlength="6" required autocomplete="new-password">
+      <input class="tin" id="pw-new2" type="password" placeholder="Type the new password again" minlength="6" required autocomplete="new-password">
+      <div><button class="btn primary" type="submit">Update password</button></div>
+    </form>
   </div>
   <div class="card panel" style="margin-top:16px"><h3>Put it on your phone's home screen</h3>
-    <p style="margin:6px 0"><b>iPhone:</b> open this site in Safari, tap the Share button, then <b>Add to Home Screen</b>.</p>
-    <p style="margin:6px 0"><b>Android:</b> open it in Chrome, tap the ⋮ menu, then <b>Add to Home screen</b>.</p>
-    <p class="muted" style="font-size:14px;margin:6px 0 0">Everything you save follows your account, so your list and progress match on every device.</p>
+    <p style="margin:6px 0"><b>iPhone:</b> open this site in Safari, tap Share, then <b>Add to Home Screen</b>.</p>
+    <p style="margin:6px 0"><b>Android:</b> open it in Chrome, tap ⋮, then <b>Add to Home screen</b>.</p>
+  </div>`;
+}
+function renderAccount(){
+  const since = user.created_at ? new Date(user.created_at).toLocaleDateString(undefined, {month:'long', day:'numeric', year:'numeric'}) : '';
+  return `<button class="back" data-act="go" data-h="recipes">← Back</button>
+  <div class="card panel"><h3>Account</h3>
+    <div class="lbl2">Email</div><div>${esc(user.email)}</div>
+    ${since ? `<div class="lbl2">Member since</div><div>${esc(since)}</div>` : ''}
+    <div class="lbl2">What's saved</div><div>${recipes.length} recipe${recipes.length === 1 ? '' : 's'} · ${allItems().length} shopping list item${allItems().length === 1 ? '' : 's'}</div>
+    <div class="row" style="margin-top:18px"><button class="btn" data-act="signout">Log out</button></div>
+  </div>
+  <div class="card panel danger" style="margin-top:16px"><h3>Delete account</h3>
+    <p style="margin:6px 0 12px">Permanently deletes your account, all your recipes and photos, your shopping list and your cooking progress. This can't be undone.</p>
+    <button class="btn dangerbtn" data-act="delopen">Delete my account and data</button>
+  </div>
+  ${delOpen ? `<div class="modal" data-act="delclose"><div class="card" data-stop><h3>Delete everything?</h3>
+    <div class="muted">This removes your account and all your data for good. Type <b>DELETE</b> to confirm.</div>
+    <input class="tin" id="del-word" autocomplete="off" style="margin-top:12px" placeholder="DELETE">
+    <div class="row"><button class="btn" data-act="delclose">Cancel</button><button class="btn dangerbtn" data-act="delconfirm">Delete forever</button></div></div></div>` : ''}`;
+}
+function renderPrivacy(){
+  return `<button class="back" data-act="go" data-h="${user ? 'recipes' : ''}">← Back</button>
+  <div class="card panel prose"><h3>Your privacy</h3>
+    <p><b>Your kitchen is yours.</b> Your recipes, photos, shopping list and cooking progress are tied to your account. Other people who use Mixing Bowl can't see them, and nobody can browse your data through the site.</p>
+    <p><b>Passwords stay secret.</b> Passwords are stored encrypted. No one, including the person who runs this site, can see yours.</p>
+    <p><b>Who can see the database.</b> Mixing Bowl is a small personal project run by Hayley. Like the owner of any website, she has technical access to the database that stores accounts, so she could see your email address and what you've saved. She doesn't look at people's data, sell it, or share it, and it isn't used for ads.</p>
+    <p><b>Photos.</b> Photos you upload are stored at long, unguessable web addresses. They aren't listed anywhere, but anyone who had a photo's exact address could open it, so skip anything sensitive.</p>
+    <p><b>Where it's stored.</b> Accounts and data are kept by Supabase, a database service. The website itself is hosted on GitHub Pages.</p>
+    <p><b>Leaving.</b> You can delete your account at any time from <b>Account</b>, which permanently removes your account and everything you've saved.</p>
   </div>`;
 }
 
@@ -536,8 +603,17 @@ let confirmFn = null;
 /* ---------------- events ---------------- */
 document.addEventListener('click', async e => {
   if(e.target.closest('[data-stop]') && !e.target.closest('[data-act]')) return;
-  const el = e.target.closest('[data-act]'); if(!el) return;
-  const a = el.dataset.act, id = el.dataset.id, shop = P().shop;
+  const el = e.target.closest('[data-act]');
+  if(menuOpen && !(el && el.dataset.act === 'menu')){ menuOpen = false; render(); }
+  if(!el) return;
+  const a = el.dataset.act, id = el.dataset.id, shop = user ? P().shop : {};
+  if(a === 'menu'){ menuOpen = !menuOpen; render(); return; }
+  if(a === 'heroart'){ const row = R(id); if(!row) return; const old = row.data.photoPath; const data = Object.assign({}, row.data); delete data.photo; delete data.photoPath;
+    const {error} = await sb.from('recipes').update({data}).eq('id', id); if(error){ toast("Couldn't change it. Try again."); return; }
+    row.data = data; if(old) sb.storage.from('photos').remove([old]).catch(() => {}); render(); toast('Switched back to the drawing'); return; }
+  if(a === 'delopen'){ delOpen = true; render(); setTimeout(() => { const w = $('#del-word'); if(w) w.focus(); }, 50); return; }
+  if(a === 'delclose'){ if(e.target.closest('[data-stop]') && el.classList.contains('modal')) return; delOpen = false; render(); return; }
+  if(a === 'delconfirm'){ if((($('#del-word') || {}).value || '').trim().toUpperCase() !== 'DELETE'){ toast('Type DELETE to confirm'); return; } el.disabled = true; deleteAccount(); return; }
   if(a === 'go'){ location.hash = el.dataset.h; return; }
   if(a === 'authmode'){ authView = {mode: el.dataset.m, msg:'', err:'', busy:false}; render(); return; }
   if(a === 'bought'){ const v = shop[id] === 'bought' ? '' : 'bought'; mutate(k => { k.progress.shop[id] = v; }); return; }
@@ -574,6 +650,20 @@ document.addEventListener('click', async e => {
   }
 });
 document.addEventListener('change', async e => {
+  if(e.target.dataset && e.target.dataset.photoFor && e.target.files[0]){
+    const id = e.target.dataset.photoFor, row = R(id); if(!row) return;
+    photoBusy = id; render();
+    try{
+      const blob = await shrink(e.target.files[0], 1400);
+      const up = await uploadPhoto(id, blob);
+      const old = row.data.photoPath;
+      const data = Object.assign({}, row.data, {photo: up.url, photoPath: up.path});
+      const {error} = await sb.from('recipes').update({data}).eq('id', id); if(error) throw error;
+      row.data = data; if(old) sb.storage.from('photos').remove([old]).catch(() => {});
+      toast('Photo saved');
+    }catch(err){ console.error(err); toast("Couldn't upload that photo. Try a different one."); }
+    photoBusy = null; render(); return;
+  }
   if(e.target.id === 'f-photo' && e.target.files[0]){
     const blob = await shrink(e.target.files[0], 1400);
     if(form.photoUrl) URL.revokeObjectURL(form.photoUrl);
@@ -592,6 +682,16 @@ document.addEventListener('submit', async e => {
     ui.sec = section; saveUi(); $('#addName').value = ''; $('#addQty').value = '';
     if(ui.filter === 'cart' || ui.filter === 'have'){ ui.filter = 'all'; saveUi(); }
     render(); toast('Added ' + name); const n = $('#addName'); if(n) n.focus({preventScroll:true});
+  }
+  if(kind === 'password'){
+    const cur = $('#pw-cur').value, nw = $('#pw-new').value, nw2 = $('#pw-new2').value;
+    if(nw !== nw2){ toast("The new passwords don't match"); return; }
+    if(nw.length < 6){ toast('Use at least 6 characters'); return; }
+    const check = await sb.auth.signInWithPassword({email: user.email, password: cur});
+    if(check.error){ toast('Your current password is incorrect'); return; }
+    const {error} = await sb.auth.updateUser({password: nw});
+    if(error) toast("Couldn't update: " + error.message); else { ['#pw-cur','#pw-new','#pw-new2'].forEach(s => { const f = $(s); if(f) f.value = ''; }); toast('Password updated'); }
+    return;
   }
   if(kind === 'name'){
     const name = $('#acc-name').value.trim();
