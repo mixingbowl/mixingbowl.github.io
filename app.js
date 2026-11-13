@@ -261,8 +261,8 @@ function render(){
 }
 function renderHeader(r){
   const n = firstName();
-  const title = user && n ? `${esc(n)}'s <span>Kitchen</span>` : `Mixing <span>Bowl</span>`;
-  return `<h1>${title}</h1><div class="hright">${user && !recovering ? `<div id="status" class="status ${statusNow.kind}"><i class="dot"></i><span>${esc(statusNow.text)}</span></div><button class="avatar" data-act="menu" aria-label="Your menu" aria-expanded="${menuOpen}">${esc((n || (user.email || '?'))[0].toUpperCase())}</button>${menuOpen ? renderMenu() : ''}` : ''}</div>`;
+  const kn = user && n && !recovering ? `<span class="kname">${esc(n)}'s Kitchen</span>` : '';
+  return `<div class="bwrap"><h1>Mixing <span>Bowl</span></h1>${kn}</div><div class="hright">${user && !recovering ? `<div id="status" class="status ${statusNow.kind}"><i class="dot"></i><span>${esc(statusNow.text)}</span></div><button class="avatar" data-act="menu" aria-label="Your menu" aria-expanded="${menuOpen}">${esc((n || (user.email || '?'))[0].toUpperCase())}</button>${menuOpen ? renderMenu() : ''}` : ''}</div>`;
 }
 function renderTabs(r){
   const left = visibleItems().filter(it => !P().shop[it.id]).length;
