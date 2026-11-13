@@ -298,7 +298,7 @@ function renderShopping(){
   });
   const secOpts = kitchen.shopping.sections;
   return `<div class="card shop-head"><button class="copyic" data-act="copy" aria-label="Copy my list" title="Copy what I still need"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h2"/></svg></button>
-    ${chipRecipes.length ? `<div class="lbl">Shopping for</div><div class="row">${chips}</div>` : ''}
+    ${chipRecipes.length ? `<div class="lbl">Shopping for</div><div class="row">${chips}</div><div class="draghint">Done with a recipe? Drag it to Past trips.</div>` : ''}
     <div class="prog-line"><b>${done} of ${items.length} sorted</b><span class="muted">${items.length - done} still remaining</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
   </div>
@@ -312,7 +312,8 @@ function renderShopping(){
       <button class="btn" type="button" data-act="addclose">Done</button>
     </form>` : `<button class="addrow" data-act="addopen"><span>+</span> Add an item</button>`}
   <div class="f-${f}">${secs || `<div class="card empty">${!all.length ? 'Nothing here yet. Open a recipe and tap <b>Add to shopping list</b>, or add an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`}</div>
-  ${all.length || (P().trips || []).length ? `<div class="tripfoot">${all.length ? `<div class="tf-q">Done shopping?</div><p>Finished recipes move to Past trips. Anything you still need stays on your list.</p><button class="btn primary" data-act="resetshop">Start a new trip</button>` : ''}<button class="tf-link" id="tripDrop" data-act="go" data-h="trips">Past trips (${(P().trips || []).length})</button></div>` : ''}`;
+  ${all.length || (P().trips || []).length ? `<div class="tripfoot">${all.length ? `<div class="tf-q">Done shopping?</div><p>Finished recipes move to Past trips. Anything you still need stays on your list.</p><button class="btn primary" data-act="resetshop">Start a new trip</button>` : ''}<button class="tf-link" data-act="go" data-h="trips">Past trips (${(P().trips || []).length})</button></div>` : ''}
+  ${chipRecipes.length ? `<div id="tripDrop" class="dropzone" aria-hidden="true"><svg class="bi" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>Drop here to move to Past trips</div>` : ''}`;
 }
 
 function renderRecipes(){
@@ -597,11 +598,11 @@ function endDrag(e, cancel){
   const was = drag; drag = null;
   if(!was.on) return;
   dragJustEnded = true; setTimeout(() => { dragJustEnded = false; }, 350);
+  const t = cancel ? null : document.elementFromPoint(e.clientX, e.clientY);
+  const hit = !!(t && t.closest('#tripDrop'));
   if(ghost){ ghost.remove(); ghost = null; } document.body.classList.remove('dragging');
   const d = $('#tripDrop'); if(d) d.classList.remove('over');
-  if(cancel) return;
-  const t = document.elementFromPoint(e.clientX, e.clientY);
-  if(t && t.closest('#tripDrop')) finishRecipeTrip(was.id);
+  if(hit) finishRecipeTrip(was.id);
 }
 document.addEventListener('pointerup', e => endDrag(e, false));
 document.addEventListener('pointercancel', e => endDrag(e, true));
