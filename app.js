@@ -824,8 +824,8 @@ function renderHelp(){
     <h4 class="htips">Good to know</h4>
     <ul>
       <li><b>Add a recipe</b> from a website link, or paste the text and tap <b>Download into form</b>.</li>
-      <li><b>Nothing goes on your list by itself.</b> Tap <b>Add to shopping list</b> on a recipe when you plan to shop for it.</li>
-      <li><b>Done shopping?</b> Tap <b>Start a new trip</b>. Finished recipes move to <b>Past trips</b>, and anything you still need stays on your list.</li>
+      <li>Tap <b>Add to shopping list</b> on a recipe when you plan to shop for it. Ingredients will not automatically get added to your shopping list.</li>
+      <li>Tap <b>Start a new trip</b> when you're starting a new shopping run. Finished recipes move to <b>Past trips</b>, and anything you still need stays on your list.</li>
       <li><b>Reorder aisles</b> with the arrows next to each section so the list matches your store.</li>
       <li><b>Archive</b> recipes you're not making right now, and unarchive them anytime.</li>
       <li><b>Add to your Home Screen</b> from Settings so it opens like an app.</li>
