@@ -217,7 +217,7 @@ function route(){
   if(h.startsWith('r-')) return {v:'recipe', id:h.slice(2)};
   if(h.startsWith('edit-')) return {v:'form', id:h.slice(5)};
   if(h === 'add') return {v:'form'};
-  if(['recipes','account','settings','privacy','trips','admin','terms','feedback'].includes(h)) return {v:h};
+  if(['recipes','account','settings','privacy','trips','admin','terms','feedback','help'].includes(h)) return {v:h};
   return {v:'shopping'};
 }
 let lastView = '';
@@ -244,12 +244,15 @@ function render(){
     else if(r.v === 'privacy') app.innerHTML = renderPrivacy();
     else if(r.v === 'terms') app.innerHTML = renderTerms();
     else if(r.v === 'feedback') app.innerHTML = renderFeedback();
+    else if(r.v === 'help') app.innerHTML = renderHelp();
     else if(r.v === 'trips') app.innerHTML = renderTrips();
     else if(r.v === 'admin') app.innerHTML = renderAdmin();
     else app.innerHTML = renderRecipe(r.id);
+    maybeTour();
   }
   const sameView = (r.v + (r.id || '')) === lastView;
   if(sameView) document.querySelectorAll('[data-keep]').forEach(el => { if(el.id && kept[el.id] != null && el.type !== 'file'){ if(el.type === 'checkbox') el.checked = kept[el.id]; else el.value = kept[el.id]; } });
+  { const fp = $('#f-paste'), fb = $('#f-parsebtn'); if(fp && fb) fb.disabled = !fp.value.trim(); }
   if(ae && sameView){ const el = document.getElementById(ae.id); if(el){ el.focus({preventScroll:true}); if(sel && el.setSelectionRange) try{ el.setSelectionRange(sel[0], sel[1]); }catch(e){} } }
   const key = r.v + (r.id || '');
   if(key !== lastView){ window.scrollTo(0, 0); lastView = key; }
@@ -342,7 +345,7 @@ function renderRecipe(id){
   const links = (d.links || []).filter(l => /^https?:\/\//i.test(l.url || '')).map(l => `<a class="lchip" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || 'Original recipe')} ↗</a>`).join('');
   const notes = d.notes && d.notes.length ? `<div class="notes"><b>Good to know</b><ul>${d.notes.map(x => `<li>${fmt(x)}</li>`).join('')}</ul></div>` : '';
   return `<button class="back" data-act="go" data-h="recipes">← All recipes</button>
-  <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(kindOf(d), artText(d))}</div><div class="artfg">${art(kindOf(d), artText(d)).replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<label class="heroedit" title="Change picture" aria-label="Change picture">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
+  <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(kindOf(d), artText(d))}</div><div class="artfg">${art(kindOf(d), artText(d)).replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<label class="heroedit" title="Change image" aria-label="Change image">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
     <h2>${esc(d.title)}</h2>
     <div class="meta">${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}${d.prep ? `<span>Prep ${esc(d.prep)}</span>` : ''}${d.cook ? `<span>Cook ${esc(d.cook)}</span>` : ''}${d.total ? `<span>⏱ Total ${esc(d.total)}</span>` : ''}</div>
     ${links ? `<div class="row src">${links}</div>` : ''}
@@ -383,14 +386,14 @@ function renderForm(id){
   <div class="card panel form">
     <h3>${r ? 'Edit recipe' : 'Add a recipe'}</h3>
     <div class="lbl2">Recipe website link <span class="hint">recommended</span></div>
-    <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a recipe link" value="${v('link', link.url)}">${r ? '' : `<button class="btn" type="button" data-act="import" ${f.importing ? 'disabled' : ''}>${f.importing ? 'Importing…' : 'Import'}</button>`}</div>
+    <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a recipe link" value="${v('link', link.url)}">${r ? '' : `<button class="btn sm" type="button" data-act="import" ${f.importing ? 'disabled' : ''}>${f.importing ? 'Importing…' : 'Import'}</button>`}</div>
     ${!r && f.importMsg ? `<div class="importmsg ${f.importOk ? 'ok' : ''}">${esc(f.importMsg)}</div>` : ''}
     <div class="lbl2">Recipe title <span class="hint">required</span></div>
     <input class="tin" id="f-title" data-keep maxlength="90" placeholder="e.g. Grandma's apple crisp" value="${v('title', d.title)}">
     ${r ? '' : `
     ${f.importOk ? '' : `<div class="lbl2">Or paste the recipe</div>
     <textarea class="tin" id="f-paste" data-keep rows="5" placeholder="Copy the recipe from the site and paste it here"></textarea>
-    <div class="row" style="margin-top:8px"><button class="btn primary" type="button" data-act="parse"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download into form</button></div>`}`}
+    <div class="row" style="margin-top:8px"><button class="btn primary sm" type="button" data-act="parse" id="f-parsebtn" disabled><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Download into form</button></div>`}`}
     <fieldset class="lockable" ${!r && !f.filled ? 'disabled' : ''}>
     <div class="g4">
       <div><div class="lbl2">Serves / makes</div><input class="tin" id="f-yield" data-keep maxlength="40" value="${v('y', d.yield)}"></div>
@@ -404,7 +407,7 @@ function renderForm(id){
     <textarea class="tin" id="f-steps" data-keep rows="9">${esc(sectionsToStepText(d.steps))}</textarea>
     <div class="lbl2">Notes <span class="hint">optional</span></div>
     <textarea class="tin" id="f-notes" data-keep rows="3">${esc((d.notes || []).join('\n'))}</textarea>
-    <div class="lbl2">Picture</div>
+    <div class="lbl2">Image</div>
     <div class="picwrap">
       <div class="picprev" id="f-pic">${photoNow ? `<img src="${esc(photoNow)}" alt="">` : art(guessArt(($('#f-title') || {}).value || d.title || ''), ($('#f-title') || {}).value || d.title || '')}</div>
       <label class="picbtn" title="Upload your own photo" aria-label="Upload your own photo"><input type="file" id="f-photo" accept="image/*" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></label>
@@ -412,7 +415,7 @@ function renderForm(id){
     </div>
     ${r && onList(r.id) ? `<label class="cb"><input type="checkbox" id="f-addlist" data-keep> Add new ingredients to list</label>` : ''}
     </fieldset>
-    <div class="row" style="margin-top:16px"><button class="btn primary big" type="button" data-act="saveform" data-id="${r ? esc(r.id) : ''}" ${f.busy || (!r && !f.filled) ? 'disabled' : ''}>${f.busy ? 'Saving…' : r ? 'Save changes' : 'Save recipe'}</button></div>
+    <div class="row" style="margin-top:16px"><button class="btn primary sm" type="button" data-act="saveform" data-id="${r ? esc(r.id) : ''}" ${f.busy || (!r && !f.filled) ? 'disabled' : ''}>${f.busy ? 'Saving…' : r ? 'Save changes' : 'Save recipe'}</button></div>
     ${f.err ? `<div class="err">${esc(f.err)}</div>` : ''}
   </div>`;
 }
@@ -737,6 +740,7 @@ function renderTrips(){
 function renderMenu(){
   return `<div class="umenu" role="menu">
     <div class="umhead"><b>${esc(firstName() || 'Your kitchen')}</b><span>${esc(user.email)}</span></div>
+    <button role="menuitem" data-act="go" data-h="help"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.4"/><path d="M12 17h.01"/></svg></span>How it works</button>
     <button role="menuitem" data-act="go" data-h="settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>Settings</button>
     <button role="menuitem" data-act="go" data-h="account"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Account</button>
     ${isAdmin ? `<button role="menuitem" data-act="go" data-h="admin"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>Admin</button>` : ''}
@@ -793,6 +797,44 @@ function renderFeedback(){
       <a class="btn" href="mailto:${FB_EMAIL}?subject=${su}">Open my email app</a>
       <button class="btn" data-act="copyemail">Copy email address</button>
     </div>
+  </div>`;
+}
+const TOUR = [
+  {art: () => `<svg class="tourico" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 16c-6-5-14-6-22-5v38c8-1 16 0 22 5c6-5 14-6 22-5V11c-8-1-16 0-22 5z"/><path d="M32 16v38"/><path d="M18 22h8M18 30h8M38 22h8" class="accl"/></svg>`, title: 'Plan your recipes', text: 'Save your recipes by pasting the URL or the recipe steps into the recipe form.'},
+  {art: () => `<svg class="tourico" viewBox="0 0 64 64" aria-hidden="true"><rect x="12" y="10" width="32" height="44" rx="5"/><path d="M20 22h16M20 30h16M20 38h10"/><circle cx="46" cy="44" r="10" class="acc"/><path d="M46 39v10M41 44h10" class="w"/></svg>`, title: 'Add to your shopping list', text: 'When you\'re ready to shop, open a recipe and tap <b>Add to shopping list</b>. Add as many recipes as you like.'},
+  {art: () => `<svg class="tourico" viewBox="0 0 64 64" aria-hidden="true"><path d="M6 12h7l6 28h28l5-20H16"/><circle cx="23" cy="50" r="4"/><circle cx="43" cy="50" r="4"/><path d="M29 30l3 3 6-6" class="accl"/></svg>`, title: 'Shop for groceries', text: 'Your ingredients are grouped by grocery aisle, like Produce and Dairy, and you can reorder the aisles. Check things off as you shop, or tap <b>Have it</b> for anything already in your kitchen.'},
+  {art: () => `<svg class="tourico" viewBox="0 0 64 64" aria-hidden="true"><path d="M10 30h44v6c0 10-8 18-18 18h-8c-10 0-18-8-18-18z"/><path d="M6 30h52"/><path d="M24 22c-3-4 3-6 0-11M32 22c-3-4 3-6 0-11M40 22c-3-4 3-6 0-11" class="accl"/></svg>`, title: 'Cook at home', text: 'Follow along with your recipes as you cook. Each one lists every ingredient, amount and step, and you can check them off as you go. Use the Recipes page as your own personal cookbook to store as many recipes as you\'d like.'},
+];
+let tourStep = -1;
+function showTour(i){
+  tourStep = i; const t = TOUR[i], last = i === TOUR.length - 1;
+  $('#modalRoot').innerHTML = `<div class="modal"><div class="card tour" data-stop>
+    <div class="tourart">${t.art()}</div>
+    <div class="tourbody"><div class="tourdots">${TOUR.map((_, j) => `<i class="${j === i ? 'on' : ''}"></i>`).join('')}</div>
+    <h3>${t.title}</h3><p>${t.text}</p>
+    <div class="row tourbtns">${i ? `<button class="btn" data-act="tourgo" data-i="${i - 1}">Back</button>` : `<button class="btn ghost" data-act="tourend">Skip</button>`}<button class="btn primary" data-act="${last ? 'tourend' : 'tourgo'}" data-i="${i + 1}">${last ? 'Let\'s cook' : 'Next'}</button></div></div>
+  </div></div>`;
+}
+function maybeTour(){
+  if(tourStep >= 0 || !kitchen || P().tourDone || recipes.length || allItems().length) return;
+  showTour(0);
+}
+function renderHelp(){
+  const step = (n, t) => `<div class="hstep"><div class="hnum">${n}</div><div><h4>${t.title}</h4><p>${t.text}</p></div></div>`;
+  return `<button class="back" data-act="go" data-h="recipes">← Back</button>
+  <div class="card panel prose help"><h3>How Mixing Bowl works</h3>
+    <p class="muted">Plan, shop and cook from one place.</p>
+    ${TOUR.map((t, i) => step(i + 1, t)).join('')}
+    <h4 class="htips">Good to know</h4>
+    <ul>
+      <li><b>Add a recipe</b> from a website link, or paste the text and tap <b>Download into form</b>.</li>
+      <li><b>Nothing goes on your list by itself.</b> Tap <b>Add to shopping list</b> on a recipe when you plan to shop for it.</li>
+      <li><b>Done shopping?</b> Tap <b>Start a new trip</b>. Finished recipes move to <b>Past trips</b>, and anything you still need stays on your list.</li>
+      <li><b>Reorder aisles</b> with the arrows next to each section so the list matches your store.</li>
+      <li><b>Archive</b> recipes you're not making right now, and unarchive them anytime.</li>
+      <li><b>Add to your Home Screen</b> from Settings so it opens like an app.</li>
+    </ul>
+    <div class="row" style="margin-top:14px"><button class="btn" data-act="tourgo" data-i="0">Replay the quick tour</button></div>
   </div>`;
 }
 function renderTerms(){
@@ -874,6 +916,8 @@ document.addEventListener('click', async e => {
     });
     toast(nm + ' added to list'); return;
   }
+  if(a === 'tourgo'){ showTour(+el.dataset.i); return; }
+  if(a === 'tourend'){ $('#modalRoot').innerHTML = ''; tourStep = -1; if(!P().tourDone) mutate(k => { k.progress.tourDone = true; }); return; }
   if(a === 'untrip'){ el.dataset.at.split('|').forEach(at => restoreTrip(at)); return; }
   if(a === 'authmode'){ authView = {mode: el.dataset.m, msg:'', err:'', busy:false}; render(); return; }
   if(a === 'bought'){ const v = shop[id] === 'bought' ? '' : 'bought'; mutate(k => { k.progress.shop[id] = v; }); return; }
@@ -933,6 +977,7 @@ document.addEventListener('click', async e => {
   }
 });
 document.addEventListener('input', e => {
+  if(e.target.id === 'f-paste'){ const b = $('#f-parsebtn'); if(b) b.disabled = !e.target.value.trim(); }
   if(e.target.id === 'rsearch'){
     const q = e.target.value.trim().toLowerCase(); let n = 0;
     document.querySelectorAll('#rgrid .tile[data-q]').forEach(t => { const m = !q || t.dataset.q.includes(q); t.hidden = !m; if(m) n++; });
