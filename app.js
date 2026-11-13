@@ -179,7 +179,7 @@ function stepList(d){ const out = []; (d.steps || []).forEach((sec, si) => (sec.
 function cookOf(id){ const c = P().cook[id] || {}; return {i: c.i || {}, s: c.s || {}}; }
 function progressOf(r){ const all = stepList(D(r)); const c = cookOf(r.id); const done = all.filter(x => c.s[x.key]).length; return {total: all.length, done, cur: all.findIndex(x => !c.s[x.key]), all}; }
 const allItems = () => kitchen.shopping.items || [];
-const visibleItems = () => allItems().filter(it => !it.recipes || !it.recipes.length || it.recipes.some(x => R(x) ? isActive(x) : false) || it.custom);
+const visibleItems = () => allItems().filter(it => !it.recipes || !it.recipes.length || it.recipes.some(x => R(x) ? isActive(x) : false) || (it.custom && !it.recipes.some(x => R(x))));
 const firstName = () => ((user && user.user_metadata && user.user_metadata.name) || '').trim();
 const pic = d => d.photo ? `<img src="${esc(d.photo)}" alt="" loading="lazy">` : art(d.art || 'bowl');
 
@@ -284,12 +284,13 @@ function renderShopping(){
     ${recipes.length ? `<div class="lbl">Shopping for</div><div class="row">${chips}</div>` : ''}
     <div class="prog-line"><b>${done} of ${items.length} sorted</b><span class="muted">${items.length - done} still to get</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row" style="margin-top:12px"><button class="btn" data-act="copy">Copy what I need</button><button class="btn" data-act="resetshop">Start a new trip</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="copy"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/></svg>Copy what I need</button><button class="btn" data-act="resetshop"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 8H6"/></svg>Start a new trip</button></div>
     <div class="lbl" style="margin-top:16px">Add something</div>
     <form class="addf" data-form="additem" autocomplete="off">
       <input id="addName" data-keep placeholder="Item (e.g. paper towels)" maxlength="80" required>
       <input id="addQty" data-keep placeholder="Amount (optional)" maxlength="60">
       <select id="addSec" data-keep aria-label="Section">${secOpts.map(s => `<option ${s === ui.sec ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+      <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No specific recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
       <button class="btn primary" type="submit">+ Add</button>
     </form>
     <div class="lbl" style="margin-top:16px">Show</div>
@@ -676,9 +677,9 @@ document.addEventListener('submit', async e => {
   if(['signin','signup','forgot','newpass'].includes(kind)) return handleAuthForm(kind);
   if(kind === 'additem'){
     const name = $('#addName').value.trim(); if(!name) return;
-    const qty = $('#addQty').value.trim(), section = $('#addSec').value || 'Other';
+    const qty = $('#addQty').value.trim(), section = $('#addSec').value || 'Other', forId = ($('#addFor') || {}).value || '';
     const id = 'c-' + Date.now().toString(36) + rid().slice(0, 4);
-    mutate(k => { if(!k.shopping.items.some(i => i.id === id)) k.shopping.items.push({id, name, qty, section, key: splitIngredient(name).key, recipes:[], custom:true}); });
+    mutate(k => { if(!k.shopping.items.some(i => i.id === id)) k.shopping.items.push({id, name, qty, section, key: splitIngredient(name).key, recipes: forId ? [forId] : [], custom:true}); if(forId) k.progress.active[forId] = true; });
     ui.sec = section; saveUi(); $('#addName').value = ''; $('#addQty').value = '';
     if(ui.filter === 'cart' || ui.filter === 'have'){ ui.filter = 'all'; saveUi(); }
     render(); toast('Added ' + name); const n = $('#addName'); if(n) n.focus({preventScroll:true});
