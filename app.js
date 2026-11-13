@@ -296,13 +296,13 @@ function renderShopping(){
     </form>
     <div class="lbl" style="margin-top:16px">Show</div>
     <div class="row">${fbtn('all','All')}${fbtn('need','Still need')}${fbtn('cart','In cart')}${fbtn('have','Have it')}</div>
-    <div class="legend">Tap the circle when it's in your cart · tap <b>Have it</b> for things already in your kitchen.</div>
-  </div><div class="f-${f}">${secs || `<div class="card empty">${!all.length ? 'Your list is empty. Add a recipe and its ingredients land here, or add items above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "Everything's checked off — time to cook! 🎉"}</div>`}</div>`;
+    <div class="legend">Tap ○ when it's in your cart · <b>Have it</b> if it's already home</div>
+  </div><div class="f-${f}">${secs || `<div class="card empty">${!all.length ? 'Nothing here yet. Add a recipe or an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`}</div>`;
 }
 
 function renderRecipes(){
-  const addTile = `<button class="tile addtile" data-act="go" data-h="add"><span class="plus">+</span><span class="body"><h2>Add a recipe</h2><span class="meta">Paste it from any website</span></span></button>`;
-  const starters = !recipes.length ? `<div class="card panel" style="margin-bottom:16px"><h3>Start with a few favorites?</h3><p class="muted" style="margin:4px 0 12px">Add a blueberry pie, a butternut squash lasagna and cake pops, with their ingredients on your shopping list. You can remove them anytime.</p><button class="btn primary" data-act="starters">Add starter recipes</button></div>` : '';
+  const addTile = `<button class="tile addtile" data-act="go" data-h="add"><span class="plus">+</span><span class="body"><h2>Add a recipe</h2><span class="meta">From a link or paste</span></span></button>`;
+  const starters = !recipes.length ? `<div class="card panel" style="margin-bottom:16px"><h3>Start with a few favorites?</h3><p class="muted" style="margin:4px 0 12px">Blueberry pie, butternut squash lasagna and cake pops. Remove them anytime.</p><button class="btn primary" data-act="starters">Add starter recipes</button></div>` : '';
   return starters + `<div class="grid">` + addTile + recipes.map(r => {
     const d = D(r), p = progressOf(r), pct = p.total ? Math.round(p.done / p.total * 100) : 0;
     const st = p.done === 0 ? 'Not started' : p.done === p.total ? 'Finished ✓' : `Step ${p.cur + 1} of ${p.total}`;
@@ -336,10 +336,10 @@ function renderRecipe(id){
     <div class="row" style="margin-top:12px"><button class="btn ${wakeLock ? 'on' : ''}" data-act="wake">${wakeLock ? '☀ Screen staying on' : '☀ Keep screen on'}</button><button class="btn" data-act="go" data-h="edit-${esc(r.id)}">Edit recipe</button><button class="btn" data-act="resetrecipe" data-id="${esc(r.id)}">Reset progress</button></div>
   </div></div>
   <div class="layout">
-    <div class="card panel ing-col"><h3>Ingredients</h3><div class="muted" style="font-size:13px">Tick them off as you measure.</div>${ings || '<div class="muted">No ingredients yet.</div>'}</div>
-    <div><h3 style="font-size:19px;margin:0 4px 10px">Steps <span class="muted" style="font-family:'DM Sans';font-size:13px;font-weight:500">— tap a step when it's done</span></h3>${steps || '<div class="card empty">No steps yet. Tap Edit to add them.</div>'}
+    <div class="card panel ing-col"><h3>Ingredients</h3>${ings || '<div class="muted">No ingredients yet.</div>'}</div>
+    <div><h3 style="font-size:19px;margin:0 4px 10px">Steps</h3>${steps || '<div class="card empty">No steps yet.</div>'}
     ${p.total && p.done === p.total ? `<div class="card finish">🎉 You made ${esc(d.title)}!</div>` : ''}${notes}
-    ${links ? `<div class="card panel origbox"><b>Want the photos and tips?</b><div class="muted" style="font-size:14px">The original page has step photos and more detail.</div><div class="row" style="margin-top:10px">${links}</div></div>` : ''}</div>
+    ${links ? `<div class="card panel origbox"><b>Photos and tips</b><div class="row" style="margin-top:10px">${links}</div></div>` : ''}</div>
   </div>`;
 }
 function renderFab(r){
@@ -395,7 +395,7 @@ function renderForm(id){
       <label class="picbtn" title="Upload your own photo" aria-label="Upload your own photo"><input type="file" id="f-photo" accept="image/*" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></label>
       ${photoNow ? `<button class="picbtn picx" type="button" data-act="rmphoto" title="Use the drawing" aria-label="Use the drawing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}
     </div>
-    <label class="cb"><input type="checkbox" id="f-addlist" data-keep ${r ? '' : 'checked'}> ${r ? 'Add any new ingredients to my shopping list' : 'Add the ingredients to my shopping list'}</label>
+    <label class="cb"><input type="checkbox" id="f-addlist" data-keep ${r ? '' : 'checked'}> ${r ? 'Add new ingredients to list' : 'Add to shopping list'}</label>
     </fieldset>
     <div class="row" style="margin-top:16px"><button class="btn primary big" type="button" data-act="saveform" data-id="${r ? esc(r.id) : ''}" ${f.busy || (!r && !f.filled) ? 'disabled' : ''}>${f.busy ? 'Saving…' : r ? 'Save changes' : 'Save recipe'}</button></div>
     ${f.err ? `<div class="err">${esc(f.err)}</div>` : ''}
@@ -408,13 +408,13 @@ function fillFromPaste(){
   const set = (id, val, force) => { const el = $(id); if(el && val && (force || !el.value.trim())) el.value = val; };
   set('#f-title', p.title); set('#f-yield', p.yield); set('#f-prep', p.prep); set('#f-cook', p.cook); set('#f-total', p.total);
   set('#f-ing', p.ingredients, true); set('#f-steps', p.steps, true); set('#f-notes', p.notes);
-  if(!p.ingredients){ toast("Couldn't find the ingredients. Try pasting just the recipe part."); return; }
+  if(!p.ingredients){ toast("Couldn't find ingredients. Paste just the recipe."); return; }
   form.filled = true; render();
-  toast('Filled in. Look it over before saving.');
+  toast('Filled in');
 }
 async function importLink(){
   const url = (($('#f-link') || {}).value || '').trim();
-  if(!/^https?:\/\/\S+\.\S+/i.test(url)){ toast('Paste a full link that starts with https://'); return; }
+  if(!/^https?:\/\/\S+\.\S+/i.test(url)){ toast('Paste a full https:// link'); return; }
   if(form.importing) return;
   form.importing = true; form.importMsg = ''; render();
   let p = null, msg = '';
@@ -552,13 +552,13 @@ function renderTrips(){
   }).join('');
   return `<button class="back" data-act="go" data-h="shopping">← Shopping list</button>
   <h2 class="ptitle">Past trips</h2>
-  ${trips.length ? `<div class="trips">${body}</div>` : `<div class="card empty">No past trips yet. When you tap <b>Start a new trip</b>, what you bought and what you already had gets saved here.</div>`}`;
+  ${trips.length ? `<div class="trips">${body}</div>` : `<div class="card empty">No trips yet. They're saved when you start a new one.</div>`}`;
 }
 function renderMenu(){
   return `<div class="umenu" role="menu">
     <div class="umhead"><b>${esc(firstName() || 'Your kitchen')}</b><span>${esc(user.email)}</span></div>
     <button role="menuitem" data-act="go" data-h="settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>Settings</button>
-    <button role="menuitem" data-act="go" data-h="account"><span class="ic"><svg viewBox="0 0 24 24"><path d="M7 14.5V20h10v-5.5"/><path d="M7 14.5a4 4 0 0 1-1.2-7.7A4.5 4.5 0 0 1 12 4a4.5 4.5 0 0 1 6.2 2.8A4 4 0 0 1 17 14.5z"/><path d="M7 17h10"/></svg></span>Account</button>
+    <button role="menuitem" data-act="go" data-h="account"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Account</button>
     <button role="menuitem" data-act="go" data-h="privacy"><span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/><path d="M12 15v2.5"/></svg></span>Privacy</button>
     <button role="menuitem" class="out" data-act="signout"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M15 16l4-4-4-4"/><path d="M19 12H10"/></svg></span>Log out</button>
   </div>`;
@@ -566,7 +566,7 @@ function renderMenu(){
 function renderSettings(){
   return `<button class="back" data-act="go" data-h="recipes">← Back</button>
   <div class="card panel"><h3>Settings</h3>
-    <div class="lbl2">Your name <span class="hint">shown at the top as “Name's Kitchen”</span></div>
+    <div class="lbl2">Your name </div>
     <form data-form="name" class="row"><input class="tin" id="acc-name" data-keep style="flex:1;min-width:160px" value="${esc(firstName())}" maxlength="40" required><button class="btn primary" type="submit">Save name</button></form>
   </div>
   <div class="card panel" style="margin-top:16px"><h3>Change password</h3>
@@ -596,7 +596,7 @@ function renderAccount(){
     <button class="btn dangerbtn" data-act="delopen">Delete my account and data</button>
   </div>
   ${delOpen ? `<div class="modal" data-act="delclose"><div class="card" data-stop><h3>Delete everything?</h3>
-    <div class="muted">This removes your account and all your data for good. Type <b>DELETE</b> to confirm.</div>
+    <div class="muted">Deletes your account and data for good. Type <b>DELETE</b> to confirm.</div>
     <input class="tin" id="del-word" autocomplete="off" style="margin-top:12px" placeholder="DELETE">
     <div class="row"><button class="btn" data-act="delclose">Cancel</button><button class="btn dangerbtn" data-act="delconfirm">Delete forever</button></div></div></div>` : ''}`;
 }
@@ -663,7 +663,7 @@ document.addEventListener('click', async e => {
   }
   if(a === 'resetshop'){
     const at = new Date().toISOString(), names = recipes.filter(r => isActive(r.id)).map(r => D(r).short || D(r).title);
-    confirmBox('Start a new trip?', 'This trip is saved to Past trips, then every "In cart" and "Have it" mark is cleared. Your items stay on the list.', 'Start new trip', () => mutate(k => {
+    confirmBox('Start a new trip?', 'Saves this trip to Past trips and clears your marks. Items stay on the list.', 'Start new trip', () => mutate(k => {
       const marks = k.progress.shop || {};
       const its = k.shopping.items.filter(i => marks[i.id]).map(i => ({n: i.name, q: i.qty || '', s: marks[i.id]}));
       const t = k.progress.trips = k.progress.trips || [];
@@ -674,8 +674,8 @@ document.addEventListener('click', async e => {
   }
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
   if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; }); return; }
-  if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks all ingredients and steps for this recipe.', 'Reset', () => mutate(k => { k.progress.cook[id] = {i:{}, s:{}}; })); return; }
-  if(a === 'delrecipe'){ const r = R(id); confirmBox('Delete this recipe?', 'This permanently deletes ' + D(r).title + ', its photo and all of your progress on it. Shopping list items that only this recipe needed are removed too. This can\'t be undone.', 'Delete recipe', () => deleteRecipe(id)); return; }
+  if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { k.progress.cook[id] = {i:{}, s:{}}; })); return; }
+  if(a === 'delrecipe'){ const r = R(id); confirmBox('Delete this recipe?', 'Deletes ' + D(r).title + ', its photo, progress and list items only it needed. Can\'t be undone.', 'Delete recipe', () => deleteRecipe(id)); return; }
   if(a === 'starters'){ el.disabled = true; addStarters(); return; }
   if(a === 'parse'){ fillFromPaste(); return; }
   if(a === 'import'){ importLink(); return; }
@@ -690,8 +690,8 @@ document.addEventListener('click', async e => {
   if(a === 'wake'){
     if(wakeLock){ wantWake = false; try{ await wakeLock.release(); }catch(err){} wakeLock = null; render(); return; }
     wantWake = true;
-    try{ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; render(); }); toast('Screen will stay on while this page is open'); render(); }
-    catch(err){ wantWake = false; toast("This browser won't let the page keep the screen on"); }
+    try{ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; render(); }); toast('Screen will stay on'); render(); }
+    catch(err){ wantWake = false; toast("Not supported on this browser"); }
   }
 });
 document.addEventListener('input', e => {
@@ -712,7 +712,7 @@ document.addEventListener('change', async e => {
       const {error} = await sb.from('recipes').update({data}).eq('id', id); if(error) throw error;
       row.data = data; if(old) sb.storage.from('photos').remove([old]).catch(() => {});
       toast('Photo saved');
-    }catch(err){ console.error(err); toast("Couldn't upload that photo. Try a different one."); }
+    }catch(err){ console.error(err); toast("Couldn't upload. Try another photo."); }
     photoBusy = null; render(); return;
   }
   if(e.target.id === 'f-photo' && e.target.files[0]){
