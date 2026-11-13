@@ -386,8 +386,8 @@ function renderForm(id){
   <div class="card panel form">
     <h3>${r ? 'Edit recipe' : 'Add a recipe'}</h3>
     <div class="lbl2">Recipe website link <span class="hint">recommended</span></div>
-    <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a recipe link" value="${v('link', link.url)}">${r ? '' : `<button class="btn sm" type="button" data-act="import" ${f.importing ? 'disabled' : ''}>${f.importing ? 'Importing…' : 'Import'}</button>`}</div>
-    ${!r && f.importMsg ? `<div class="importmsg ${f.importOk ? 'ok' : ''}">${esc(f.importMsg)}</div>` : ''}
+    <div class="linkrow"><input class="tin" id="f-link" data-keep type="url" inputmode="url" placeholder="Paste a recipe link" value="${v('link', link.url)}"></div>
+    ${!r && f.importing ? `<div class="importmsg">Importing…</div>` : !r && f.importMsg ? `<div class="importmsg ${f.importOk ? 'ok' : ''}">${esc(f.importMsg)}</div>` : ''}
     <div class="lbl2">Recipe title <span class="hint">required</span></div>
     <input class="tin" id="f-title" data-keep maxlength="90" placeholder="e.g. Grandma's apple crisp" value="${v('title', d.title)}">
     ${r ? '' : `
@@ -1002,8 +1002,14 @@ document.addEventListener('input', e => {
   }
   if(e.target.id === 'f-title'){ const p = $('#f-pic'); if(p && !p.querySelector('img')) p.innerHTML = art(guessArt(e.target.value), e.target.value); }
 });
+function autoImport(el){
+  const u = el.value.trim();
+  if(form && form.forId === 'new' && /^https?:\/\/\S+\.\S+/i.test(u) && u !== form.lastImport){ form.lastImport = u; importLink(); }
+}
+document.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.id === 'f-link'){ e.preventDefault(); autoImport(e.target); } });
+document.addEventListener('focusout', e => { if(e.target.id === 'f-link') autoImport(e.target); });
 document.addEventListener('paste', e => {
-  if(e.target.id === 'f-link' && form && form.forId === 'new') setTimeout(() => { if(/^https?:\/\/\S+\.\S+/i.test(e.target.value.trim())) importLink(); }, 0);
+  if(e.target.id === 'f-link' && form && form.forId === 'new') setTimeout(() => autoImport(e.target), 0);
 });
 document.addEventListener('change', async e => {
   if(e.target.dataset && e.target.dataset.photoFor && e.target.files[0]){
