@@ -129,7 +129,7 @@ function renderAuth(){
       <button class="btn primary big" type="submit">${v.busy ? 'Saving…' : 'Save password'}</button></form>
       ${v.err ? `<div class="err">${esc(v.err)}</div>` : ''}</div></div>`;
   }
-  const title = m === 'signup' ? 'Create your kitchen' : m === 'forgot' ? 'Reset your password' : 'Welcome back';
+  const title = m === 'signup' ? 'Create your kitchen' : m === 'forgot' ? 'Reset your password' : 'Welcome to Mixing Bowl!';
   return `<div class="authwrap">
     <div class="authhero">${art('pie', 'blueberry')}</div>
     <div class="card panel auth"><h2>${title}</h2>
@@ -439,10 +439,28 @@ async function importLink(){
   try{
     const {data, error} = await sb.functions.invoke('import-recipe', {body: {url}});
     if(error) throw error;
-    if(data && data.ingredients) p = data; else msg = (data && data.error) || '';
+    if(data && data.ingredients) p = data; else if(data && data.caption) p = {caption: data.caption}; else msg = (data && data.error) || '';
   }catch(err){ console.error(err); }
   form.importing = false;
   if(!p){ form.importOk = false; form.importMsg = (/share that page/.test(msg) ? "This site doesn't allow imports." : msg || "Couldn't import that link.") + ' Paste it below.'; render(); return; }
+  if(p.caption){
+    const cap = p.caption.replace(/\s*((?:10|[0-9])\uFE0F?\u20E3|\u{1F51F})\s*/gu, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    const pa = $('#f-paste'); if(pa) pa.value = cap;
+    const q = parseRecipeText(cap);
+    if(!q.ingredients){
+      let ls = cap.split('\n').map(l => l.trim()).filter(l => l && !/follow (me|us)|link in (my )?bio|tag (a|your) friend|save (this|for later)|share this|comment ["“]?\w+["”]? (below|and)/i.test(l)).slice(1);
+      const t = ls.findIndex(l => /^(pro(fessional)? )?(tips|notes)\b.*:?$/i.test(l.replace(/[^\w\s:]/g, '').trim()));
+      if(t >= 0){ q.notes = ls.slice(t + 1).join(' ').split(/\s*[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]\uFE0F?\s*/u).map(x => x.trim()).filter(x => x.length > 3).join('\n'); ls = ls.slice(0, t); }
+      q.steps = ls.join('\n');
+    }
+    q.title = (q.title || '').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F]/gu, '').trim();
+    const set = (id, val, force) => { const el = $(id); if(el && val && (force || !el.value.trim())) el.value = val; };
+    set('#f-title', q.title); set('#f-yield', q.yield); set('#f-prep', q.prep); set('#f-cook', q.cook); set('#f-total', q.total);
+    set('#f-ing', q.ingredients, true); set('#f-steps', q.steps, true); set('#f-notes', q.notes);
+    form.filled = !!(q.title || q.steps); form.importOk = true;
+    form.importMsg = q.ingredients ? '✓ Pulled from the Instagram caption. Check it over before saving.' : '✓ Pulled from the Instagram caption. It had no ingredient list, so add those before saving.';
+    render(); return;
+  }
   const set = (id, val, force) => { const el = $(id); if(el && val && (force || !el.value.trim())) el.value = val; };
   set('#f-title', p.title); set('#f-yield', p.yield); set('#f-prep', p.prep); set('#f-cook', p.cook); set('#f-total', p.total);
   set('#f-ing', p.ingredients, true); set('#f-steps', p.steps, true); set('#f-notes', p.notes);
