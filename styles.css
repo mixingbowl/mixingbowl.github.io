@@ -425,8 +425,8 @@ h3,.panel h3,.section h3,.stephead,.tile h2{font-family:'Archivo Black','Inter',
 .addf select,select.tin{appearance:none;-webkit-appearance:none;-moz-appearance:none;padding-right:42px;background-color:#fff;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23141414' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;background-size:15px 15px;cursor:pointer}
 
 .foot{text-align:center;margin:18px auto 28px}.foot span{display:inline-block;background:#141414;color:#fff;font-family:"Inter",system-ui,sans-serif;font-size:12px;letter-spacing:.02em;padding:5px 12px;border-radius:99px}
-.brand .hright{transform:translateY(4px)}
-@media(max-width:600px){.brand .hright{transform:translateY(3px)}}
+.bwrap{display:flex;align-items:center;gap:12px;min-width:0}.bwrap h1{flex:none}
+.kname{font-weight:700;font-size:14px;color:#cfcfcf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;border-left:2px solid #444;padding-left:12px;transform:translateY(3px)}
 
 /* type system: Pacifico logo, Archivo Black headings, Inter text; sizes 12/14/15/19/26 */
 .brand h1{font-size:28px}@media(max-width:600px){.brand h1{font-size:23px}}.gatecard h2{font-size:30px}
