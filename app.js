@@ -593,7 +593,7 @@ function finishRecipeTrip(id){
     const marks = k.progress.shop = k.progress.shop || {};
     const its = k.shopping.items.filter(i => (i.recipes || []).includes(id));
     const t = k.progress.trips = k.progress.trips || [];
-    if(!(t[0] && t[0].at === at)){ t.unshift({at, r: [name], items: its.filter(i => marks[i.id]).map(i => ({n: i.name, q: i.qty || '', s: marks[i.id]}))}); if(t.length > 60) t.length = 60; }
+    if(!(t[0] && t[0].at === at)){ t.unshift({at, rid: id, r: [name], items: its.filter(i => marks[i.id]).map(i => ({id: i.id, n: i.name, q: i.qty || '', s: marks[i.id]}))}); if(t.length > 60) t.length = 60; }
     its.forEach(i => { if((i.recipes || []).length === 1) delete marks[i.id]; });
     k.progress.active[id] = false;
     (k.progress.done = k.progress.done || {})[id] = true;
@@ -672,14 +672,38 @@ async function downloadBackup(){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast('Backup downloaded');
 }
+function restoreTrip(at){
+  const trip = (P().trips || []).find(x => x.at === at); if(!trip) return;
+  const ids = trip.rid ? [trip.rid] : recipes.filter(r => (trip.r || []).includes(D(r).short || D(r).title)).map(r => r.id);
+  mutate(k => {
+    const t = k.progress.trips || []; const i = t.findIndex(x => x.at === at); if(i < 0) return;
+    const marks = k.progress.shop = k.progress.shop || {};
+    ids.forEach(id => { k.progress.active[id] = true; if(k.progress.done) delete k.progress.done[id]; });
+    (t[i].items || []).forEach(it => {
+      const item = (it.id && k.shopping.items.find(x => x.id === it.id)) || k.shopping.items.find(x => x.name === it.n && (!ids.length || (x.recipes || []).some(r => ids.includes(r))));
+      if(item) marks[item.id] = it.s;
+    });
+    t.splice(i, 1);
+  });
+  toast((trip.r && trip.r.length ? trip.r.join(', ') : 'Trip') + ' is back on your list');
+  location.hash = 'shopping';
+}
 function renderTrips(){
   const trips = P().trips || [];
   const list = (arr) => `<ul>${arr.map(i => `<li>${esc(i.n)}${i.q ? ` <span class="q">· ${esc(fmt(i.q))}</span>` : ''}</li>`).join('')}</ul>`;
-  const body = trips.map((t, n) => {
-    const d = new Date(t.at), got = t.items.filter(i => i.s === 'bought'), had = t.items.filter(i => i.s === 'have');
+  const days = [];
+  trips.forEach(t => { const key = new Date(t.at).toDateString(); const g = days.find(x => x.key === key); if(g) g.trips.push(t); else days.push({key, trips: [t]}); });
+  const body = days.map((g, n) => {
+    const d = new Date(g.trips[0].at), all = g.trips.flatMap(t => t.items || []);
+    const got = all.filter(i => i.s === 'bought').length, had = all.filter(i => i.s === 'have').length;
+    const names = [...new Set(g.trips.flatMap(t => t.r || []))];
     const when = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric'});
-    return `<details class="card trip" ${n === 0 ? 'open' : ''}><summary><div><b>${esc(when)}</b><div class="muted">${got.length} bought · ${had.length} already had${t.r && t.r.length ? ' · ' + esc(t.r.join(', ')) : ''}</div></div><span class="chev">▾</span></summary>
-      <div class="tbody">${got.length ? `<h4>Bought</h4>${list(got)}` : ''}${had.length ? `<h4>Already had</h4>${list(had)}` : ''}</div></details>`;
+    const parts = g.trips.map(t => {
+      const gt = (t.items || []).filter(i => i.s === 'bought'), hd = (t.items || []).filter(i => i.s === 'have');
+      return `<div class="tpart">${g.trips.length > 1 ? `<div class="tname">${esc((t.r || []).join(', ') || 'Shopping trip')}</div>` : ''}${gt.length ? `<h4>Bought</h4>${list(gt)}` : ''}${hd.length ? `<h4>Already had</h4>${list(hd)}` : ''}${!gt.length && !hd.length ? '<div class="muted" style="font-size:14px">Nothing was marked.</div>' : ''}<div class="row" style="margin-top:10px"><button class="btn" data-act="untrip" data-at="${esc(t.at)}"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Back to shopping list</button></div></div>`;
+    }).join('');
+    return `<details class="card trip" ${n === 0 ? 'open' : ''}><summary><div><b>${esc(when)}</b><div class="muted">${got} bought · ${had} already had${names.length ? ' · ' + esc(names.join(', ')) : ''}</div></div><span class="chev">▾</span></summary>
+      <div class="tbody">${parts}</div></details>`;
   }).join('');
   return `<button class="back" data-act="go" data-h="shopping">← Shopping list</button>
   <h2 class="ptitle">Past trips</h2>
@@ -800,6 +824,7 @@ document.addEventListener('click', async e => {
   if(a === 'delconfirm'){ if((($('#del-word') || {}).value || '').trim().toUpperCase() !== 'DELETE'){ toast('Type DELETE to confirm'); return; } el.disabled = true; deleteAccount(); return; }
   if(a === 'go'){ if(el.dataset.h === 'admin'){ adminData = null; adminUsage = null; } location.hash = el.dataset.h; return; }
   if(a === 'backup'){ downloadBackup(); return; }
+  if(a === 'untrip'){ restoreTrip(el.dataset.at); return; }
   if(a === 'authmode'){ authView = {mode: el.dataset.m, msg:'', err:'', busy:false}; render(); return; }
   if(a === 'bought'){ const v = shop[id] === 'bought' ? '' : 'bought'; mutate(k => { k.progress.shop[id] = v; }); return; }
   if(a === 'have'){ const v = shop[id] === 'have' ? '' : 'have'; mutate(k => { k.progress.shop[id] = v; }); return; }
