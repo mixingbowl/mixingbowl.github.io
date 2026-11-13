@@ -279,7 +279,7 @@ function renderShopping(){
   const pool = f === 'have' ? all : items;
   const keep = i => { const st = shop[i.id] || ''; return f === 'all' || (f === 'need' && !st) || (f === 'cart' && st === 'bought') || (f === 'have' && st === 'have'); };
   const cnt = {all: items.length, need: items.filter(i => !shop[i.id]).length, cart: items.filter(i => shop[i.id] === 'bought').length, have: all.filter(i => shop[i.id] === 'have').length};
-  const fbtn = (k, l) => `<button class="chip fbtn ${f === k ? 'on' : ''}" style="--c:#2B2320" data-act="filter" data-f="${k}">${l} <span class="fc">${cnt[k]}</span></button>`;
+  const fbtn = (k, l) => `<button class="${f === k ? 'on' : ''}" aria-pressed="${f === k}" data-act="filter" data-f="${k}">${l} <span class="fc">${cnt[k]}</span></button>`;
   const order = [...new Set(kitchen.shopping.sections.concat(all.map(i => i.section || 'Other')))];
   let secs = '';
   order.forEach(sec => {
@@ -301,19 +301,18 @@ function renderShopping(){
     ${chipRecipes.length ? `<div class="lbl">Shopping for</div><div class="row">${chips}</div>` : ''}
     <div class="prog-line"><b>${done} of ${items.length} sorted</b><span class="muted">${items.length - done} still remaining</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row" style="margin-top:12px"><button class="btn" data-act="resetshop"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.2a2 2 0 0 0 2 1.6h8.1a2 2 0 0 0 2-1.5L21.5 8H6"/></svg>Start a new trip</button><button class="btn" id="tripDrop" data-act="go" data-h="trips"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>Past trips <span class="fc">${(P().trips || []).length}</span></button></div>
-    ${ui.addOpen ? `<form class="addf" data-form="additem" autocomplete="off" style="margin-top:14px">
+  </div>
+  ${all.length || (P().trips || []).length ? `<div class="seg" role="group" aria-label="Show">${fbtn('all','All')}${fbtn('need','Need')}${fbtn('cart','In cart')}${fbtn('have','Have')}</div>` : ''}
+  ${ui.addOpen ? `<form class="card addcard addf" data-form="additem" autocomplete="off">
       <input id="addName" data-keep placeholder="Item (e.g. blueberries)" maxlength="80" required>
       <input id="addQty" data-keep placeholder="Amount (optional)" maxlength="60">
       <select id="addSec" data-keep aria-label="Section">${secOpts.map(s => `<option ${s === ui.sec ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
       <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No specific recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
       <button class="btn primary" type="submit">+ Add</button>
       <button class="btn" type="button" data-act="addclose">Done</button>
-    </form>` : `<button class="btn addopen" data-act="addopen">Add Item +</button>`}
-    <div class="lbl" style="margin-top:16px">Filters</div>
-    <div class="row">${fbtn('all','All')}${fbtn('need','Need')}${fbtn('cart','In cart')}${fbtn('have','Have')}</div>
-    
-  </div><div class="f-${f}">${secs || `<div class="card empty">${!all.length ? 'Nothing here yet. Open a recipe and tap <b>Add to shopping list</b>, or add an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`}</div>`;
+    </form>` : `<button class="addrow" data-act="addopen"><span>+</span> Add an item</button>`}
+  <div class="f-${f}">${secs || `<div class="card empty">${!all.length ? 'Nothing here yet. Open a recipe and tap <b>Add to shopping list</b>, or add an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`}</div>
+  ${all.length || (P().trips || []).length ? `<div class="tripfoot">${all.length ? `<div class="tf-q">Done shopping?</div><p>Finished recipes move to Past trips. Anything you still need stays on your list.</p><button class="btn primary" data-act="resetshop">Start a new trip</button>` : ''}<button class="tf-link" id="tripDrop" data-act="go" data-h="trips">Past trips (${(P().trips || []).length})</button></div>` : ''}`;
 }
 
 function renderRecipes(){
