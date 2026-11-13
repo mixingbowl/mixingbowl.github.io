@@ -14,25 +14,38 @@ function plate(cx, cy, rx, ry){
   <ellipse cx="${cx}" cy="${cy-2}" rx="${rx*.72}" ry="${ry*.66}" fill="#F3F0EA"/>`;
 }
 
+let artN = 0;
 export function art(kind){
   if(kind === 'pie'){
-    const berries = [[128,86],[150,74],[176,80],[198,94],[118,108],[142,104],[168,100],[194,116],[132,126],[160,124],[184,134],[150,142]]
-      .map(([x,y]) => `<circle cx="${x}" cy="${y}" r="7.5" fill="#3E4A9E" ${SW.replace('2.2','1.4')}/><circle cx="${x-2.5}" cy="${y-2.5}" r="2.2" fill="#9AA6F0"/>`).join('');
-    const v = [124,148,172,196].map(x => `<path d="M${x} 52 C ${x-3} 100, ${x+3} 120, ${x} 158" stroke="#C9893F" stroke-width="15" stroke-linecap="round" fill="none"/><path d="M${x} 52 C ${x-3} 100, ${x+3} 120, ${x} 158" stroke="#F0C27A" stroke-width="11" stroke-linecap="round" fill="none"/>`).join('');
-    const h = [76,100,124,148].map(y => `<path d="M100 ${y} C 140 ${y-3}, 180 ${y+3}, 222 ${y}" stroke="#C9893F" stroke-width="15" stroke-linecap="round" fill="none"/><path d="M100 ${y} C 140 ${y-3}, 180 ${y+3}, 222 ${y}" stroke="#F4CB86" stroke-width="11" stroke-linecap="round" fill="none"/>`).join('');
-    const crimp = Array.from({length:28},(_,i)=>{const a=i/28*Math.PI*2;return `<circle cx="${(160+Math.cos(a)*74).toFixed(1)}" cy="${(105+Math.sin(a)*62).toFixed(1)}" r="9" fill="#E7B266" stroke="#B97A35" stroke-width="1.6"/>`}).join('');
-    return `<svg ${W}>${cloth('#DCE3F6','#9DAAD8')}
-      ${plate(160,112,124,82)}
-      <ellipse cx="160" cy="108" rx="92" ry="74" fill="#8E9BD3" ${SW}/>
-      <clipPath id="pieClip"><ellipse cx="160" cy="105" rx="68" ry="56"/></clipPath>
-      <ellipse cx="160" cy="105" rx="70" ry="58" fill="#2C2F6B"/>
-      <g clip-path="url(#pieClip)">${berries}${v}${h}
-        <path d="M118 90 C 128 80, 140 78, 150 82" stroke="#fff" stroke-width="3" opacity=".35" fill="none" stroke-linecap="round"/></g>
+    const id = 'pA' + (++artN) + '-', u = k => `url(#${id}${k})`, f = n => n.toFixed(1);
+    const berry = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${u('bb')}" stroke="${O}" stroke-width="1.3"/><path d="M${f(x-r*.35)} ${f(y-r*.55)} l${f(r*.35)} ${f(r*.25)} l${f(r*.35)} ${f(-r*.25)}" stroke="#1E2357" stroke-width="1.2" fill="none" stroke-linecap="round"/><circle cx="${f(x-r*.38)}" cy="${f(y+r*.1)}" r="${f(r*.26)}" fill="#B9C2FF" opacity=".8"/>`;
+    const mint = (x, y, rot) => `<g transform="translate(${x} ${y}) rotate(${rot})"><path d="M0 0 C 6 -10, 18 -10, 22 0 C 18 8, 6 8, 0 0Z" fill="#6DB36A" stroke="${O}" stroke-width="1.3"/><path d="M2 0 L19 0" stroke="#3F7D3D" stroke-width="1"/></g>`;
+    const cx = 160, cy = 100, rx = 66, ry = 54, w = 14;
+    const xs = [0,1,2,3].map(i => cx - rx*.62 + i*rx*.413), ys = [0,1,2,3].map(i => cy - ry*.62 + i*ry*.413);
+    let lat = xs.map(x => `<rect x="${f(x-w/2)}" y="${cy-ry-10}" width="${w}" height="${2*ry+20}" rx="6" fill="${u('st')}" stroke="#A86E2C" stroke-width="1.4"/>`).join('') + ys.map(y => `<rect x="${cx-rx-10}" y="${f(y-w/2)}" width="${2*rx+20}" height="${w}" rx="6" fill="${u('sh')}" stroke="#A86E2C" stroke-width="1.4"/>`).join('');
+    xs.forEach((x, i) => ys.forEach((y, j) => { lat += (i + j) % 2 === 0 ? `<rect x="${f(x-w/2)}" y="${f(y-w/2-3)}" width="${w}" height="${w+6}" rx="3" fill="${u('st')}"/><path d="M${f(x-w/2)} ${f(y-w/2-3)} v${w+6} M${f(x+w/2)} ${f(y-w/2-3)} v${w+6}" stroke="#A86E2C" stroke-width="1.4"/>` : `<path d="M${f(x-w/2+1)} ${f(y+w/2+1)} h${w-2}" stroke="#8A5A22" stroke-width="2" opacity=".35"/>`; }));
+    let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    let sugar = ''; for(let i = 0; i < 70; i++){ const a = rnd()*6.283, r = Math.sqrt(rnd()), x = f(cx + Math.cos(a)*rx*r), y = f(cy + Math.sin(a)*ry*r); sugar += `<rect x="${x}" y="${y}" width="2.2" height="2.2" rx=".6" fill="#FFF8E6" opacity=".9" transform="rotate(${Math.round(rnd()*90)} ${x} ${y})"/>`; }
+    let crimp = ''; for(let i = 0; i < 30; i++){ const a = i/30*6.283, x = f(cx + Math.cos(a)*(rx+6)), y = f(cy + Math.sin(a)*(ry+6)); crimp += `<ellipse cx="${x}" cy="${y}" rx="10" ry="8.5" fill="${u('cr')}" stroke="#A86E2C" stroke-width="1.5" transform="rotate(${Math.round(a*57.3+90)} ${x} ${y})"/><path d="M${f(x-3)} ${f(y-3)} q3 -2 6 0" stroke="#FCE3B0" stroke-width="1.6" fill="none" stroke-linecap="round"/>`; }
+    const bub = [[132,78,4],[186,84,3.5],[150,118,3],[178,122,4],[140,98,2.5],[196,104,3]].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#7B57B8" opacity=".85"/><circle cx="${f(x-r*.3)}" cy="${f(y-r*.3)}" r="${f(r*.35)}" fill="#C9B4F0"/>`).join('');
+    const fork = `<g transform="translate(282 128) rotate(-18)"><rect x="-3" y="0" width="6" height="58" rx="3" fill="#D9DEE4" stroke="${O}" stroke-width="1.6"/><path d="M-9 -28 v16 q0 10 9 10 q9 0 9 -10 v-16" fill="none" stroke="${O}" stroke-width="7" stroke-linecap="round"/><path d="M-9 -28 v16 q0 10 9 10 q9 0 9 -10 v-16" fill="none" stroke="#D9DEE4" stroke-width="4" stroke-linecap="round"/><path d="M-3 -28 v14 M3 -28 v14" stroke="${O}" stroke-width="5" stroke-linecap="round"/><path d="M-3 -28 v14 M3 -28 v14" stroke="#D9DEE4" stroke-width="2.4" stroke-linecap="round"/></g>`;
+    const lg = (k, x2, y2, stops) => `<linearGradient id="${id}${k}" x1="0" y1="0" x2="${x2}" y2="${y2}">${stops.map(([o,c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`;
+    return `<svg ${W}><defs><radialGradient id="${id}bb" cx=".35" cy=".35" r=".8"><stop offset="0" stop-color="#6A78D6"/><stop offset=".6" stop-color="#3B458F"/><stop offset="1" stop-color="#262B66"/></radialGradient><radialGradient id="${id}jam" cx=".5" cy=".45" r=".6"><stop offset="0" stop-color="#5A3A8E"/><stop offset=".7" stop-color="#3A2468"/><stop offset="1" stop-color="#26174A"/></radialGradient>
+      ${lg('cr',0,1,[[0,'#F7D493'],[.55,'#E6AE5E'],[1,'#C98A3E']])}${lg('st',1,0,[[0,'#D99A4C'],[.35,'#F6CF8A'],[.7,'#EDB868'],[1,'#C98A3E']])}${lg('sh',0,1,[[0,'#F8D899'],[.5,'#EDB868'],[1,'#C98A3E']])}${lg('tin',0,1,[[0,'#E9EDF2'],[1,'#9AA3AE']])}
+      <clipPath id="${id}ca"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath></defs>
+      ${cloth('#DCE3F6','#7F8FD0')}
+      <ellipse cx="162" cy="112" rx="126" ry="82" fill="#000" opacity=".12"/>
+      <ellipse cx="160" cy="106" rx="122" ry="80" fill="#fff" ${SW}/><ellipse cx="160" cy="104" rx="98" ry="64" fill="#F2EEE6"/>
+      <ellipse cx="160" cy="104" rx="106" ry="70" fill="none" stroke="#7F8FD0" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round"/>
+      <ellipse cx="160" cy="103" rx="88" ry="74" fill="${u('tin')}" ${SW}/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${rx+2}" ry="${ry+2}" fill="${u('jam')}"/>
+      <g clip-path="${u('ca')}">${[[128,72,7],[152,66,6.5],[178,70,7],[200,86,6.5],[116,98,7],[196,112,7],[124,126,6.5],[160,140,7],[184,134,6.5],[146,92,6],[172,96,6],[158,116,6.5]].map(b => berry(...b)).join('')}${bub}</g>
+      <g clip-path="${u('ca')}">${lat}</g><g clip-path="${u('ca')}">${sugar}</g>
+      <path d="M108 128 q-4 10 2 14 q6 -4 3 -14Z" fill="#3A2468" stroke="${O}" stroke-width="1.3"/><path d="M212 82 q6 6 2 13 q-6 -2 -2 -13Z" fill="#3A2468" stroke="${O}" stroke-width="1.3"/>
       ${crimp}
-      <ellipse cx="160" cy="105" rx="70" ry="58" fill="none" stroke="${O}" stroke-width="2.2"/>
-      ${sparkle(250,46,7,'#fff')}${sparkle(64,150,5,'#fff')}${sparkle(268,150,4,'#fff')}
-      <g ${SW}><circle cx="278" cy="96" r="9" fill="#3E4A9E"/><circle cx="292" cy="108" r="8" fill="#3E4A9E"/><circle cx="276" cy="114" r="7" fill="#3E4A9E"/></g>
-      <circle cx="275" cy="93" r="2.4" fill="#9AA6F0"/><circle cx="289" cy="105" r="2.2" fill="#9AA6F0"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="#7A4A1A" stroke-width="1.4" opacity=".5"/>
+      ${fork}${berry(52,150,8)}${berry(66,162,7)}${berry(44,166,6.5)}${mint(58,142,-30)}${mint(70,148,20)}${berry(268,42,7)}${berry(282,52,6)}
+      ${sparkle(40,40,7,'#fff')}${sparkle(232,26,5,'#fff')}${sparkle(300,176,5,'#fff')}${sparkle(100,184,4,'#fff')}
     </svg>`;
   }
   if(kind === 'lasagna'){
