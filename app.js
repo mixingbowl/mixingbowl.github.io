@@ -1,6 +1,6 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { STARTERS } from './starter.js';
-import { art } from './art.js';
+import { art } from './art.js?v=8';
 import { parseRecipeText, ingTextToGroups, groupsToIngText, stepTextToSections, sectionsToStepText, splitIngredient, guessSection, SECTIONS, prettyFractions, addQty } from './parse.js';
 
 const $ = s => document.querySelector(s);
@@ -326,13 +326,13 @@ function renderRecipe(id){
   const links = (d.links || []).filter(l => /^https?:\/\//i.test(l.url || '')).map(l => `<a class="btn orig" href="${esc(l.url)}" target="_blank" rel="noopener">📖 ${esc(l.label || 'Original recipe')} ↗</a>`).join('');
   const notes = d.notes && d.notes.length ? `<div class="notes"><b>Good to know</b><ul>${d.notes.map(x => `<li>${fmt(x)}</li>`).join('')}</ul></div>` : '';
   return `<button class="back" data-act="go" data-h="recipes">← All recipes</button>
-  <div class="card hero"><div class="art ${d.photo ? 'photo' : ''}">${pic(d)}<label class="photobtn">${photoBusy === r.id ? 'Uploading…' : d.photo ? '📷 Change photo' : '📷 Add your photo'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label>${d.photo ? `<button class="photobtn photorm" data-act="heroart" data-id="${esc(r.id)}">Use drawing</button>` : ''}</div><div class="body">
+  <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(d.art || 'bowl')}</div><div class="artfg">${art(d.art || 'bowl').replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<button class="herox" data-act="delrecipe" data-id="${esc(r.id)}" aria-label="Delete recipe" title="Delete recipe"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button><label class="heroedit" title="Change picture" aria-label="Change picture">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
     <h2>${esc(d.title)}</h2>
     <div class="meta">${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}${d.prep ? `<span>Prep ${esc(d.prep)}</span>` : ''}${d.cook ? `<span>Cook ${esc(d.cook)}</span>` : ''}${d.total ? `<span>⏱ Total ${esc(d.total)}</span>` : ''}</div>
     ${links ? `<div class="row src">${links}</div>` : ''}
     <div class="prog-line" style="margin-top:0"><b>${p.total && p.done === p.total ? 'All done — enjoy!' : `${p.done} of ${p.total} steps done`}</b><span class="muted">${pct}%</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row" style="margin-top:12px"><button class="btn ${wakeLock ? 'on' : ''}" data-act="wake">${wakeLock ? '☀ Screen staying on' : '☀ Keep screen on'}</button><button class="btn" data-act="go" data-h="edit-${esc(r.id)}">✎ Edit or change photo</button><button class="btn" data-act="resetrecipe" data-id="${esc(r.id)}">Reset progress</button><button class="btn" data-act="delrecipe" data-id="${esc(r.id)}">Remove</button></div>
+    <div class="row" style="margin-top:12px"><button class="btn ${wakeLock ? 'on' : ''}" data-act="wake">${wakeLock ? '☀ Screen staying on' : '☀ Keep screen on'}</button><button class="btn" data-act="go" data-h="edit-${esc(r.id)}">Edit recipe</button><button class="btn" data-act="resetrecipe" data-id="${esc(r.id)}">Reset progress</button></div>
   </div></div>
   <div class="layout">
     <div class="card panel ing-col"><h3>Ingredients</h3><div class="muted" style="font-size:13px">Tick them off as you measure.</div>${ings || '<div class="muted">No ingredients yet.</div>'}</div>
@@ -632,7 +632,7 @@ document.addEventListener('click', async e => {
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
   if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; }); return; }
   if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks all ingredients and steps for this recipe.', 'Reset', () => mutate(k => { k.progress.cook[id] = {i:{}, s:{}}; })); return; }
-  if(a === 'delrecipe'){ const r = R(id); confirmBox('Remove this recipe?', 'Removes ' + D(r).title + ' and any shopping items only it needed. Items shared with other recipes stay.', 'Remove', () => deleteRecipe(id)); return; }
+  if(a === 'delrecipe'){ const r = R(id); confirmBox('Delete this recipe?', 'This permanently deletes ' + D(r).title + ', its photo and all of your progress on it. Shopping list items that only this recipe needed are removed too. This can\'t be undone.', 'Delete recipe', () => deleteRecipe(id)); return; }
   if(a === 'starters'){ el.disabled = true; addStarters(); return; }
   if(a === 'parse'){ fillFromPaste(); return; }
   if(a === 'rmphoto'){ if(form.photoUrl) URL.revokeObjectURL(form.photoUrl); form.photoBlob = null; form.photoUrl = null; form.removePhoto = true; render(); return; }
