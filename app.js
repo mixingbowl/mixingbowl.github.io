@@ -226,13 +226,14 @@ function render(){
   const ae = document.activeElement && document.activeElement.id && document.activeElement.hasAttribute('data-keep') ? document.activeElement : null;
   let sel = null; try{ sel = ae && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null; }catch(e){}
   const r = route();
+  if(!(user && !recovering && gate !== 'in')) delete app.dataset.gate;
   $('#hdr').innerHTML = renderHeader(r);
   if(!sb){ return; }
   if(!user && r.v === 'privacy'){ app.innerHTML = renderPrivacy(); $('#tabs').innerHTML = ''; }
   else if(!user && r.v === 'terms'){ app.innerHTML = renderTerms(); $('#tabs').innerHTML = ''; }
   else if(!user && r.v === 'feedback'){ app.innerHTML = renderFeedback(); $('#tabs').innerHTML = ''; }
   else if(!user || recovering){ app.innerHTML = renderAuth(); $('#tabs').innerHTML = ''; }
-  else if(gate !== 'in'){ app.innerHTML = renderGate(); $('#tabs').innerHTML = ''; }
+  else if(gate !== 'in'){ const g = renderGate(); if(app.dataset.gate !== g){ app.innerHTML = g; app.dataset.gate = g; } $('#tabs').innerHTML = ''; }
   else if(!loaded){ app.innerHTML = `<div class="grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`; }
   else {
     renderTabs(r);
