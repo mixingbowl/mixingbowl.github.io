@@ -257,3 +257,4 @@ main{background:var(--cream);border:3px solid #141414;border-radius:20px;box-sha
 .items{background-image:linear-gradient(90deg,transparent 50px,rgba(215,38,61,.2) 50px,rgba(215,38,61,.2) 51.5px,transparent 51.5px)}
 .ing-col{background-image:linear-gradient(90deg,transparent 42px,rgba(215,38,61,.2) 42px,rgba(215,38,61,.2) 43.5px,transparent 43.5px)}
 .ing-col .grp{padding-left:30px;color:var(--accent);margin-top:18px}
+.ing-col>h3,.ing-col>.muted{padding-left:30px}
