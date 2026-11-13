@@ -1,6 +1,6 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { STARTERS } from './starter.js';
-import { art } from './art.js?v=10';
+import { art, guessArt as guessKind } from './art.js?v=11';
 import { parseRecipeText, ingTextToGroups, groupsToIngText, stepTextToSections, sectionsToStepText, splitIngredient, guessSection, SECTIONS, prettyFractions, addQty } from './parse.js';
 
 const $ = s => document.querySelector(s);
@@ -131,7 +131,7 @@ function renderAuth(){
   }
   const title = m === 'signup' ? 'Create your kitchen' : m === 'forgot' ? 'Reset your password' : 'Welcome back';
   return `<div class="authwrap">
-    <div class="authhero">${art('pie')}</div>
+    <div class="authhero">${art('pie', 'blueberry')}</div>
     <div class="card panel auth"><h2>${title}</h2>
     <p class="muted" style="margin:4px 0 14px">${m === 'signup' ? 'Save recipes, build a shopping list, and follow along step by step on any device.' : m === 'forgot' ? "Enter your email and we'll send you a link." : 'Sign in to view your recipes and shopping list.'}</p>
     <form data-form="${m}">
@@ -184,7 +184,9 @@ const allItems = () => kitchen.shopping.items || [];
 const onList = id => isActive(id) && !(P().done || {})[id] && allItems().some(i => (i.recipes || []).includes(id));
 const visibleItems = () => allItems().filter(it => !it.recipes || !it.recipes.length || it.recipes.some(x => R(x) ? isActive(x) : false) || (it.custom && !it.recipes.some(x => R(x))));
 const firstName = () => ((user && user.user_metadata && user.user_metadata.name) || '').trim();
-const pic = d => d.photo ? `<img src="${esc(d.photo)}" alt="" loading="lazy">` : art(d.art || 'bowl');
+const artText = d => [d.title || ''].concat((d.ingredients || []).flatMap(g => g.items || [])).join('\n');
+const kindOf = d => { const k = guessArt(d.title || ''); return k !== 'bowl' ? k : (d.art || 'bowl'); };
+const pic = d => d.photo ? `<img src="${esc(d.photo)}" alt="" loading="lazy">` : art(kindOf(d), artText(d));
 
 function addIngredientsTo(k, recipeId, groups){
   const items = k.shopping.items; const touched = new Set();
@@ -340,7 +342,7 @@ function renderRecipe(id){
   const links = (d.links || []).filter(l => /^https?:\/\//i.test(l.url || '')).map(l => `<a class="lchip" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || 'Original recipe')} ↗</a>`).join('');
   const notes = d.notes && d.notes.length ? `<div class="notes"><b>Good to know</b><ul>${d.notes.map(x => `<li>${fmt(x)}</li>`).join('')}</ul></div>` : '';
   return `<button class="back" data-act="go" data-h="recipes">← All recipes</button>
-  <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(d.art || 'bowl')}</div><div class="artfg">${art(d.art || 'bowl').replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<label class="heroedit" title="Change picture" aria-label="Change picture">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
+  <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(kindOf(d), artText(d))}</div><div class="artfg">${art(kindOf(d), artText(d)).replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<label class="heroedit" title="Change picture" aria-label="Change picture">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
     <h2>${esc(d.title)}</h2>
     <div class="meta">${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}${d.prep ? `<span>Prep ${esc(d.prep)}</span>` : ''}${d.cook ? `<span>Cook ${esc(d.cook)}</span>` : ''}${d.total ? `<span>⏱ Total ${esc(d.total)}</span>` : ''}</div>
     ${links ? `<div class="row src">${links}</div>` : ''}
@@ -404,7 +406,7 @@ function renderForm(id){
     <textarea class="tin" id="f-notes" data-keep rows="3">${esc((d.notes || []).join('\n'))}</textarea>
     <div class="lbl2">Picture</div>
     <div class="picwrap">
-      <div class="picprev" id="f-pic">${photoNow ? `<img src="${esc(photoNow)}" alt="">` : art(guessArt(($('#f-title') || {}).value || d.title || ''))}</div>
+      <div class="picprev" id="f-pic">${photoNow ? `<img src="${esc(photoNow)}" alt="">` : art(guessArt(($('#f-title') || {}).value || d.title || ''), ($('#f-title') || {}).value || d.title || '')}</div>
       <label class="picbtn" title="Upload your own photo" aria-label="Upload your own photo"><input type="file" id="f-photo" accept="image/*" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></label>
       ${photoNow ? `<button class="picbtn picx" type="button" data-act="rmphoto" title="Use the drawing" aria-label="Use the drawing"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ''}
     </div>
@@ -444,18 +446,7 @@ async function importLink(){
   if(p.title) $('#f-title').value = p.title;
   form.filled = true; form.importOk = true; form.importMsg = '✓ Imported'; render();
 }
-function guessArt(t){
-  t = (t || '').toLowerCase();
-  if(/cake ?pops?/.test(t)) return 'cakepops';
-  if(/\bpies?\b|\btarts?\b|galette|cobbler|crisp\b|crumble|quiche|turnover/.test(t)) return 'pie';
-  if(/cupcake|cheesecake|\bcakes?\b|torte|bundt|tiramisu/.test(t)) return 'cake';
-  if(/cookie|brownie|blondie|\bbars?\b|snickerdoodle|macaron|biscotti|shortbread|fudge|truffle/.test(t)) return 'cookies';
-  if(/lasagna|casserole|\bbake\b|baked ziti|enchilada|gratin|moussaka|shepherd|strata/.test(t)) return 'lasagna';
-  if(/soup|stew|chili|chowder|curry|bisque|gumbo|broth|pho\b|ramen/.test(t)) return 'soup';
-  if(/pasta|spaghetti|noodle|penne|\bmac\b|macaroni|ravioli|gnocchi|fettuccine|linguine|rigatoni|orzo|carbonara|alfredo|lo mein/.test(t)) return 'pasta';
-  if(/bread|loaf|\brolls?\b|muffin|biscuit|scone|bagel|focaccia|brioche|pancake|waffle|croissant|pretzel|buns?\b|sourdough|cinnamon roll/.test(t)) return 'bread';
-  return 'bowl';
-}
+function guessArt(t){ return guessKind(t); }
 async function shrink(file, max){
   try{
     const bmp = await createImageBitmap(file); const sc = Math.min(1, (max || 1400) / Math.max(bmp.width, bmp.height));
@@ -950,7 +941,7 @@ document.addEventListener('input', e => {
     const ab = $('#archbox'); if(ab){ ab.hidden = !!q && !an; if(q && an) ab.open = true; }
     const none = $('#rnone'); if(none) none.hidden = !q || n + an > 0;
   }
-  if(e.target.id === 'f-title'){ const p = $('#f-pic'); if(p && !p.querySelector('img')) p.innerHTML = art(guessArt(e.target.value)); }
+  if(e.target.id === 'f-title'){ const p = $('#f-pic'); if(p && !p.querySelector('img')) p.innerHTML = art(guessArt(e.target.value), e.target.value); }
 });
 document.addEventListener('paste', e => {
   if(e.target.id === 'f-link' && form && form.forId === 'new') setTimeout(() => { if(/^https?:\/\/\S+\.\S+/i.test(e.target.value.trim())) importLink(); }, 0);
