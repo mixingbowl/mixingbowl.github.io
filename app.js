@@ -140,6 +140,7 @@ function renderAuth(){
       ${m !== 'forgot' ? `<input class="tin" id="au-pass" type="password" placeholder="Password${m === 'signup' ? ' (6+ characters)' : ''}" minlength="6" required autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}">` : ''}
       <button class="btn primary big" type="submit" ${v.busy ? 'disabled' : ''}>${v.busy ? 'One sec…' : m === 'signup' ? 'Create account' : m === 'forgot' ? 'Send reset link' : 'Sign in'}</button>
     </form>
+    ${m === 'signup' ? `<div class="fine">By creating an account, you confirm you're 13 or older and agree to the <a href="#terms">Terms</a> and <a href="#privacy">Privacy</a> notice.</div>` : ''}
     ${v.err ? `<div class="err">${esc(v.err)}</div>` : ''}${v.msg ? `<div class="ok">${esc(v.msg)}</div>` : ''}
     <div class="authlinks">
       ${m !== 'signin' ? `<button class="linkbtn" data-act="authmode" data-m="signin">I have an account — sign in</button>` : `<button class="linkbtn" data-act="authmode" data-m="signup">New here? Create an account</button><button class="linkbtn" data-act="authmode" data-m="forgot">Forgot password?</button>`}
@@ -213,7 +214,7 @@ function route(){
   if(h.startsWith('r-')) return {v:'recipe', id:h.slice(2)};
   if(h.startsWith('edit-')) return {v:'form', id:h.slice(5)};
   if(h === 'add') return {v:'form'};
-  if(['recipes','account','settings','privacy','trips','admin'].includes(h)) return {v:h};
+  if(['recipes','account','settings','privacy','trips','admin','terms'].includes(h)) return {v:h};
   return {v:'shopping'};
 }
 let lastView = '';
@@ -225,6 +226,7 @@ function render(){
   $('#hdr').innerHTML = renderHeader(r);
   if(!sb){ return; }
   if(!user && r.v === 'privacy'){ app.innerHTML = renderPrivacy(); $('#tabs').innerHTML = ''; }
+  else if(!user && r.v === 'terms'){ app.innerHTML = renderTerms(); $('#tabs').innerHTML = ''; }
   else if(!user || recovering){ app.innerHTML = renderAuth(); $('#tabs').innerHTML = ''; }
   else if(gate !== 'in'){ app.innerHTML = renderGate(); $('#tabs').innerHTML = ''; }
   else if(!loaded){ app.innerHTML = `<div class="grid"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>`; }
@@ -236,6 +238,7 @@ function render(){
     else if(r.v === 'account') app.innerHTML = renderAccount();
     else if(r.v === 'settings') app.innerHTML = renderSettings();
     else if(r.v === 'privacy') app.innerHTML = renderPrivacy();
+    else if(r.v === 'terms') app.innerHTML = renderTerms();
     else if(r.v === 'trips') app.innerHTML = renderTrips();
     else if(r.v === 'admin') app.innerHTML = renderAdmin();
     else app.innerHTML = renderRecipe(r.id);
@@ -675,6 +678,7 @@ function renderMenu(){
     <button role="menuitem" data-act="go" data-h="settings"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>Settings</button>
     <button role="menuitem" data-act="go" data-h="account"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>Account</button>
     ${isAdmin ? `<button role="menuitem" data-act="go" data-h="admin"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>Admin</button>` : ''}
+    <a role="menuitem" class="mlink" href="mailto:mixingbowl.admin@gmail.com?subject=Mixing%20Bowl%20feedback"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg></span>Send feedback</a>
     <button role="menuitem" data-act="go" data-h="privacy"><span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/><path d="M12 15v2.5"/></svg></span>Privacy</button>
     <button role="menuitem" class="out" data-act="signout"><span class="ic"><svg viewBox="0 0 24 24"><path d="M10 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4"/><path d="M15 16l4-4-4-4"/><path d="M19 12H10"/></svg></span>Exit kitchen</button>
   </div>`;
@@ -716,6 +720,20 @@ function renderAccount(){
     <input class="tin" id="del-word" autocomplete="off" style="margin-top:12px" placeholder="DELETE">
     <div class="row"><button class="btn" data-act="delclose">Cancel</button><button class="btn dangerbtn" data-act="delconfirm">Delete forever</button></div></div></div>` : ''}`;
 }
+function renderTerms(){
+  return `<button class="back" data-act="go" data-h="${user ? 'recipes' : ''}">← Back</button>
+  <div class="card panel prose"><h3>Terms of Use</h3>
+    <p class="muted">Last updated November 13, 2026</p>
+    <p><b>Using Mixing Bowl.</b> Mixing Bowl is a free personal project for organizing recipes and shopping lists. It's for personal, non-commercial use, and you must be 13 or older to create an account.</p>
+    <p><b>Your content.</b> What you add is yours, and you're responsible for it. Only save content you have the right to use. Recipes saved from other websites still belong to their creators and are for your own personal use.</p>
+    <p><b>Fair use of the site.</b> Don't upload anything illegal, harmful or abusive, and don't try to break, overload or misuse the site or other people's accounts.</p>
+    <p><b>Provided as is.</b> Mixing Bowl is offered as is, without warranties of any kind. Features may change, and the site may be paused or shut down. Keep your own copy of anything important.</p>
+    <p><b>Liability.</b> To the fullest extent permitted by law, Mixing Bowl is not liable for any loss or damage resulting from your use of the site.</p>
+    <p><b>Accounts.</b> You can delete your account at any time from <b>Account</b>. Accounts that break these terms may be suspended or removed.</p>
+    <p><b>Changes.</b> These terms may be updated from time to time. Continuing to use Mixing Bowl means you accept the current version.</p>
+    <p><b>Contact.</b> Email <a href="mailto:mixingbowl.admin@gmail.com">mixingbowl.admin@gmail.com</a>.</p>
+  </div>`;
+}
 function renderPrivacy(){
   return `<button class="back" data-act="go" data-h="${user ? 'recipes' : ''}">← Back</button>
   <div class="card panel prose"><h3>Your privacy</h3>
@@ -724,6 +742,8 @@ function renderPrivacy(){
     <p><b>Photos.</b> Uploaded photos are stored at private, unguessable web addresses that aren't listed anywhere. Anyone with a photo's exact address could open it, so avoid uploading anything sensitive.</p>
     <p><b>Where it's stored.</b> Accounts and data are kept by Supabase, a database service. The website itself is hosted on GitHub Pages.</p>
     <p><b>Leaving.</b> You can delete your account at any time from <b>Account</b>, which permanently removes your account and everything you've saved.</p>
+    <p><b>Children.</b> Mixing Bowl isn't intended for children under 13, and we don't knowingly collect information from them.</p>
+    <p><b>Questions.</b> Email <a href="mailto:mixingbowl.admin@gmail.com">mixingbowl.admin@gmail.com</a>.</p>
   </div>`;
 }
 
