@@ -243,7 +243,24 @@ function addFresh(k, id, lines){
   if(k.progress.archived) delete k.progress.archived[id];
 }
 const ingListed = (id, line) => { const key = splitIngredient(line).key; return allItems().some(i => (i.recipes || []).includes(id) && (i.key || splitIngredient(i.name).key) === key && !P().shop[i.id]) && isActive(id) && !(P().done || {})[id]; };
-let addSheet = null, choosing = null, chosenN = 0, moreOpen = false;
+let addSheet = null, choosing = null, chosenN = 0, moreOpen = false, shopQ = '';
+/* one shopping-list line -> {name, qty}: "milk (1 gal)", "2 lbs chicken", "eggs x12", "- bread" */
+function parseListLine(raw){
+  let t = String(raw || '').replace(/^\s*(?:[-•*–·▪◦]|\d+[.)]|\[\s?[xX]?\s?\])\s+/, '').replace(/\s+/g, ' ').trim();
+  if(!t) return null;
+  let name = t, qty = '', m;
+  if((m = t.match(/^(.*?)\s*\(([^)]+)\)\s*$/)) && /\d|[½¼¾⅓⅔]|dozen|bunch|bag|box|can|jar|pack|gal|lb|oz/i.test(m[2])){ name = m[1]; qty = m[2]; }
+  else if((m = t.match(/^(.*?)\s*(?:\s[xX]\s?|\s?[:–—]\s|\s-\s)\s*(\d.*)$/))){ name = m[1]; qty = m[2]; }
+  else if(/^[\d½¼¾⅓⅔⅛]/.test(t)){ const sp = splitIngredient(t); if(sp.qty){ qty = sp.qty; name = sp.name; } }
+  name = name.replace(/[,;:\-–\s]+$/, '').trim(); if(!name) return null;
+  return {name: name.charAt(0).toUpperCase() + name.slice(1), qty: prettyFractions(qty.trim())};
+}
+function addListItems(lines, forId, sec){
+  const parsed = lines.map(parseListLine).filter(Boolean); if(!parsed.length) return 0;
+  const stamp = Date.now().toString(36);
+  mutate(k => { parsed.forEach((p, n) => { const id = 'c-' + stamp + n + '-' + p.name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 10); if(k.shopping.items.some(i => i.id === id)) return; const g = guessSection(p.name); k.shopping.items.push({id, name: p.name, qty: p.qty, section: sec || (g && g !== 'Other' ? g : 'Other'), key: splitIngredient(p.name).key, recipes: forId ? [forId] : [], custom: true}); }); if(forId) k.progress.active[forId] = true; });
+  return parsed.length;
+}
 const hostOf = u => { try{ return new URL(u).hostname.replace(/^www\./, ''); }catch(e){ return 'website'; } };
 const ICON_PEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 const ICON_MORE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
@@ -314,8 +331,9 @@ function renderShopping(){
   const pct = items.length ? Math.round(done / items.length * 100) : 0;
   const chipRecipes = recipes.filter(r => !(P().done || {})[r.id] && !isArch(r.id));
   const chips = chipRecipes.map(r => `<button class="chip ${isActive(r.id) ? 'on' : ''}" style="--c:${esc(D(r).color || '#888')}" data-act="active" data-drag="1" data-id="${esc(r.id)}"><i class="sw"></i>${esc(D(r).short || D(r).title)}</button>`).join(' ');
-  const pool = f === 'have' ? all : items;
-  const keep = i => { const st = shop[i.id] || ''; return f === 'all' || (f === 'need' && !st) || (f === 'cart' && st === 'bought') || (f === 'have' && st === 'have'); };
+  const Q = shopQ.trim().toLowerCase();
+  const pool = Q ? all.filter(i => i.name.toLowerCase().includes(Q) && (items.includes(i) || shop[i.id])) : f === 'have' ? all : items;
+  const keep = i => { const st = shop[i.id] || ''; return Q || f === 'all' || (f === 'need' && !st) || (f === 'cart' && st === 'bought') || (f === 'have' && st === 'have'); };
   const cnt = {all: items.length, need: items.filter(i => !shop[i.id]).length, cart: items.filter(i => shop[i.id] === 'bought').length, have: all.filter(i => shop[i.id] === 'have').length};
   const fbtn = (k, l) => `<button class="${f === k ? 'on' : ''}" aria-pressed="${f === k}" data-act="filter" data-f="${k}">${l} <span class="fc">${cnt[k]}</span></button>`;
   const order = [...new Set(kitchen.shopping.sections.concat(all.map(i => i.section || 'Other')))];
@@ -324,13 +342,13 @@ function renderShopping(){
     let list = pool.filter(i => (i.section || 'Other') === sec); if(!list.length) return;
     const left = list.filter(i => !shop[i.id]).length;
     list = list.slice().sort((a, b) => (shop[a.id] ? 1 : 0) - (shop[b.id] ? 1 : 0)).filter(keep);
-    if(f !== 'all' && !list.length) return;
-    const sub = f === 'have' ? list.length + ' on hand' : f === 'cart' ? list.length + ' in cart' : (left ? left + ' to get' : 'all set ✓');
+    if((Q || f !== 'all') && !list.length) return;
+    const sub = Q ? list.length + (list.length === 1 ? ' match' : ' matches') : f === 'have' ? list.length + ' on hand' : f === 'cart' ? list.length + ' in cart' : (left ? left + ' to get' : 'all set ✓');
     secs += `<div class="section" data-sec="${esc(sec)}"><h3>${esc(sec)} <small>${sub}</small><span class="secmv"><button class="up" data-act="secmv" data-s="${esc(sec)}" data-d="-1" aria-label="Move ${esc(sec)} up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button><button class="dn" data-act="secmv" data-s="${esc(sec)}" data-d="1" aria-label="Move ${esc(sec)} down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></span></h3><div class="card items">` + list.map(it => {
       const st = shop[it.id] || '';
       const tags = (it.custom ? `<span class="tag" style="--c:#6E6259">Added by you</span>` : '') + (it.recipes || []).map(x => { const rr = R(x); return rr ? `<span class="tag" style="--c:${esc(D(rr).color)}">${esc(D(rr).short || D(rr).title)}</span>` : ''; }).join('');
       return `<div class="item ${st}"><button class="check" data-act="bought" data-id="${esc(it.id)}" aria-label="In my cart">${CHECK}</button>
-      <div class="info"><div class="name">${esc(it.name)}</div>${it.qty ? `<div class="qty">${fmt(it.qty)}</div>` : ''}<div class="tags">${tags}</div></div>
+      <div class="info"><div class="name">${Q ? esc(it.name).replace(new RegExp('(' + esc(Q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'i'), '<mark>$1</mark>') : esc(it.name)}</div>${it.qty ? `<div class="qty">${fmt(it.qty)}</div>` : ''}<div class="tags">${tags}</div></div>
       <button class="have" data-act="have" data-id="${esc(it.id)}">${st === 'have' ? 'Have it ✓' : 'Have it'}</button><button class="del" data-act="delitem" data-id="${esc(it.id)}" aria-label="Remove ${esc(it.name)}">✕</button></div>`;
     }).join('') + `</div></div>`;
   });
@@ -340,17 +358,20 @@ function renderShopping(){
     <div class="prog-line"><b>${done} of ${items.length} sorted</b><span class="muted">${items.length - done} still remaining</span></div>
     <div class="bar"><i style="width:${pct}%"></i></div>
   </div>
-  ${all.length || (P().trips || []).length ? `<div class="seg" role="group" aria-label="Show">${fbtn('all','All')}${fbtn('need','Need')}${fbtn('cart','In cart')}${fbtn('have','Have')}</div>` : ''}
-  ${ui.addOpen ? `<form class="card addcard addf" data-form="additem" autocomplete="off">
-      <input id="addName" data-keep placeholder="Item (e.g. blueberries)" maxlength="80" required>
+  ${all.length ? `<div class="shopsearch ${Q ? 'on' : ''}" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="shopq" data-keep type="search" enterkeyhint="search" autocomplete="off" placeholder="Search your list" value="${esc(shopQ)}" aria-label="Search your list">${Q ? '<button class="sclear" data-act="sclear" aria-label="Clear search">✕</button>' : ''}</div>` : ''}
+  ${Q ? `<div class="qnote" aria-live="polite">${pool.length ? `${pool.length} match${pool.length === 1 ? '' : 'es'} across Need, In cart and Have` : `Nothing on your list matches “${esc(shopQ.trim())}”`}</div>` : ''}
+  ${!Q && (all.length || (P().trips || []).length) ? `<div class="seg" role="group" aria-label="Show">${fbtn('all','All')}${fbtn('need','Need')}${fbtn('cart','In cart')}${fbtn('have','Have')}</div>` : ''}
+  ${Q ? '' : ui.addOpen ? `<form class="card addcard addf" data-form="additem" autocomplete="off">
+      <input id="addName" data-keep placeholder="Item, e.g. milk (1 gal)" maxlength="400" required>
       <input id="addQty" data-keep placeholder="Amount (optional)" maxlength="60">
       <select id="addSec" data-keep aria-label="Section">${secOpts.map(s => `<option ${s === ui.sec ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
       <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No specific recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
       <button class="btn primary" type="submit">+ Add</button>
       <button class="btn" type="button" data-act="addclose">Done</button>
+      <div class="addtip">Tip: paste a whole list and each line becomes its own item.</div>
     </form>` : `<button class="addrow" data-act="addopen"><span>+</span> Add an item</button>`}
-  <div class="f-${f}">${secs || `<div class="card empty">${!all.length ? 'Nothing here yet. Open a recipe and tap <b>Add to shopping list</b>, or add an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`}</div>
-  ${all.length || (P().trips || []).length ? `<div class="tripfoot">${all.length ? `<div class="tf-q">Done shopping?</div><p>Finished recipes move to Past trips. Anything you still need stays on your list.</p><button class="btn primary" data-act="resetshop">Start a new trip</button>` : ''}<button class="tf-link" data-act="go" data-h="trips">Past trips (${(P().trips || []).length})</button></div>` : ''}
+  <div class="f-${f}">${secs || (Q ? '' : `<div class="card empty">${!all.length ? 'Nothing here yet. Open a recipe and tap <b>Add to shopping list</b>, or add an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`)}</div>
+  ${all.length || (P().trips || []).length ? `${all.length && !Q ? `<div class="tripfoot2"><div class="tf2-ic" aria-hidden="true">🛒</div><div class="tf2-t"><b>Back from the store?</b><span>${cnt.cart} in your cart · ${cnt.need} still needed</span></div><button class="btn primary" data-act="resetshop">Finish trip</button></div>` : ''}<div class="tf2-links"><button class="tf-link" data-act="go" data-h="trips">Past trips (${(P().trips || []).length})</button></div>` : ''}
   ${chipRecipes.length ? `<div id="tripDrop" class="dropzone" aria-hidden="true"><svg class="bi" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>Drop here to move to Past trips</div>` : ''}`;
 }
 
@@ -685,6 +706,7 @@ function newTrip(){
     const stillNeeded = i => (i.recipes || []).some(x => live.some(r => r.id === x) && !fin.includes(x));
     k.shopping.items.forEach(i => { if(marks[i.id] && !stillNeeded(i) && !loose.includes(i)){ delete marks[i.id]; delete logged[i.id]; } });
     loose.forEach(i => { delete marks[i.id]; delete logged[i.id]; });
+    Object.keys(marks).forEach(id => { if(marks[id] === 'bought') marks[id] = 'have'; });
     k.shopping.items = k.shopping.items.filter(i => !loose.includes(i));
     shown.forEach(i => { if(marks[i.id]) logged[i.id] = true; });
   });
@@ -1001,12 +1023,13 @@ document.addEventListener('click', async e => {
     return;
   }
   if(a === 'resetshop'){
-    confirmBox('Start a new trip?', 'Finished recipes move to Past trips. Anything you still need stays on your list.', 'Start new trip', () => newTrip());
+    confirmBox('Finish this trip?', 'What’s in your cart is saved to Past trips, along with any recipe you have everything for. Anything you still need stays on your list.', 'Finish trip', () => newTrip());
     return;
   }
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
   if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; delete o.before; syncMade(k, id); }); return; }
   if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { bankLegacy(k, id); k.progress.cook[id] = {i:{}, s:{}}; })); return; }
+  if(a === 'sclear'){ shopQ = ''; const qi = $('#shopq'); if(qi) qi.value = ''; render(); const q = $('#shopq'); if(q) q.focus({preventScroll:true}); return; }
   if(a === 'more'){ moreOpen = !moreOpen; render(); return; }
   if(a === 'addask'){ addSheet = {id}; render(); return; }
   if(a === 'sheetclose'){ addSheet = null; render(); return; }
@@ -1058,7 +1081,16 @@ document.addEventListener('click', async e => {
     catch(err){ wantWake = false; toast("Not supported on this browser"); }
   }
 });
+document.addEventListener('paste', e => {
+  if(e.target.id !== 'addName') return;
+  const txt = (e.clipboardData || window.clipboardData).getData('text') || ''; const lines = txt.split(/\r?\n/).filter(l => l.trim());
+  if(lines.length < 2) return;
+  e.preventDefault(); const forId = ($('#addFor') || {}).value || '';
+  const n = addListItems(lines, forId, '');
+  if(n){ if(ui.filter === 'cart' || ui.filter === 'have'){ ui.filter = 'all'; saveUi(); } render(); toast(`Added ${n} items`); }
+});
 document.addEventListener('input', e => {
+  if(e.target.id === 'shopq'){ shopQ = e.target.value; render(); return; }
   if(e.target.id === 'f-paste'){ const b = $('#f-parsebtn'); if(b) b.disabled = !e.target.value.trim(); }
   if(e.target.id === 'rsearch'){
     const q = e.target.value.trim().toLowerCase(); let n = 0;
@@ -1104,8 +1136,9 @@ document.addEventListener('submit', async e => {
   const kind = e.target.dataset.form; if(!kind) return; e.preventDefault();
   if(['signin','signup','forgot','newpass'].includes(kind)) return handleAuthForm(kind);
   if(kind === 'additem'){
-    const name = $('#addName').value.trim(); if(!name) return;
-    const qty = $('#addQty').value.trim(), section = $('#addSec').value || 'Other', forId = ($('#addFor') || {}).value || '';
+    const raw = $('#addName').value.trim(); if(!raw) return;
+    const pl = parseListLine(raw) || {name: raw, qty: ''}; const name = pl.name;
+    const qty = $('#addQty').value.trim() || pl.qty, section = $('#addSec').value || 'Other', forId = ($('#addFor') || {}).value || '';
     const id = 'c-' + Date.now().toString(36) + rid().slice(0, 4);
     mutate(k => { if(!k.shopping.items.some(i => i.id === id)) k.shopping.items.push({id, name, qty, section, key: splitIngredient(name).key, recipes: forId ? [forId] : [], custom:true}); if(forId) k.progress.active[forId] = true; });
     ui.sec = section; saveUi(); $('#addName').value = ''; $('#addQty').value = '';
@@ -1128,6 +1161,6 @@ document.addEventListener('submit', async e => {
     if(error) toast("Couldn't save your name"); else { user = data.user; toast('Saved'); render(); }
   }
 });
-window.addEventListener('hashchange', () => { addSheet = null; choosing = null; moreOpen = false; render(); });
+window.addEventListener('hashchange', () => { addSheet = null; choosing = null; moreOpen = false; shopQ = ''; render(); });
 
 boot();
