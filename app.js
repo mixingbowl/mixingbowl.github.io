@@ -359,20 +359,59 @@ function renderShopping(){
   ${chipRecipes.length ? `<div id="tripDrop" class="dropzone" aria-hidden="true"><svg class="bi" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>Drop here to move to Past trips</div>` : ''}`;
 }
 
+/* ---- tags, favorites, sorting (stored per person in kitchen.progress) ---- */
+const TAGS0 = ['Appetizers','Dips','Breakfast','Mains','Sides','Soups','Salads','Pasta','Pizza','Breads','Desserts','Beverages','Vegetarian','Chicken','Beef','Pork'];
+const TAGRX = [['Desserts',/\b(pie|cakes?|cookies?|brownies?|frosting|tarts?|pudding|cheesecake|cupcakes?|fudge|crisp|cobbler|ice cream|cake pops?|truffles?|bars)\b/],['Pizza',/pizza/],['Pasta',/pasta|lasagna|spaghetti|noodle|mac and|penne|ravioli|linguine|fettuccine/],['Soups',/soup|stew|chili|chowder|bisque/],['Salads',/salad/],['Breads',/bread|rolls?\b|biscuit|focaccia|bagel/],['Breakfast',/pancake|waffle|oatmeal|granola|muffin|frittata|omelet|french toast/],['Appetizers',/bites|crostini|wings|appetizer|sliders/],['Dips',/\bdip\b|salsa|hummus|guac/],['Beverages',/drink|cocktail|smoothie|lemonade|latte|punch|cider/],['Sides',/casserole|roasted|mashed|slaw|stuffing/],['Chicken',/chicken/],['Beef',/beef|steak|brisket|meatball/],['Pork',/pork|bacon|\bham\b|sausage|carnitas/]];
+const MEAT = /chicken|beef|pork|bacon|sausage|\bham\b|turkey|fish|shrimp|salmon|tuna|steak|brisket|prosciutto|pepperoni|anchov|gelatin/;
+function autoTags(d){
+  const t = (d.title || '').toLowerCase(), ing = (d.ingredients || []).flatMap(g => g.items || []).join(' ').toLowerCase();
+  let out = TAGRX.filter(([, rx]) => rx.test(t)).map(([k]) => k);
+  if(out.includes('Sides') && out.some(x => ['Pasta','Pizza','Soups','Desserts','Salads','Breakfast'].includes(x))) out = out.filter(x => x !== 'Sides');
+  ['Chicken','Beef','Pork'].forEach((k, i) => { if(!out.includes(k) && [/chicken/, /beef|steak|brisket/, /pork|bacon|\bham\b|sausage/][i].test(ing) && !out.includes('Desserts')) out.push(k); });
+  if(!MEAT.test(ing + ' ' + t)) out.push('Vegetarian');
+  else if(!out.includes('Desserts') && !out.some(x => ['Soups','Salads','Pizza','Pasta','Appetizers','Sides','Breakfast'].includes(x))) out.push('Mains');
+  return [...new Set(out)];
+}
+const tagsOf = r => ((P().tags || {})[r.id]) || autoTags(D(r));
+const favOf = id => !!((P().fav || {})[id]);
+const allTags = () => { const used = recipes.flatMap(r => tagsOf(r)); return [...new Set(TAGS0.concat(P().ctags || [], used))]; };
+let recTag = 'all', recFav = false, recQ = '', catOpen = false, sortOpen = false, tagEdit = null;
+const SORTS = {recent:'Recent', az:'A–Z', made:'Most made', progress:'In progress'};
+const ICON_HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>';
+const ICON_SORT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>';
+const ICON_CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 function renderRecipes(){
   const addTile = `<button class="tile addtile" data-act="go" data-h="add"><span class="plus">+</span><span class="body"><h2>Add a recipe</h2><span class="meta">From a link or paste</span></span></button>`;
   const starters = !recipes.length ? `<div class="card panel" style="margin-bottom:16px"><h3>Start with a favorite?</h3><p class="muted" style="margin:4px 0 12px">Add our Blueberry Pie to try things out. Remove it anytime.</p><button class="btn primary" data-act="starters">Add Blueberry Pie</button></div>` : '';
   const live = recipes.filter(r => !isArch(r.id)), arch = recipes.filter(r => isArch(r.id));
-  const search = recipes.length > 1 ? `<div class="rsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="rsearch" type="search" placeholder="Search recipes" aria-label="Search recipes" autocomplete="off"></div>` : '';
+  const search = recipes.length > 1 ? `<div class="rsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg><input id="rsearch" type="search" placeholder="Search recipes" aria-label="Search recipes" autocomplete="off" value="${esc(recQ)}"></div>` : '';
   const archBox = arch.length ? `<details class="card archbox" id="archbox"><summary>Archived <span class="fc">${arch.length}</span><span class="chev">▾</span></summary>${arch.map(r => `<div class="arow" data-q="${esc((D(r).title + ' ' + (D(r).short || '')).toLowerCase())}"><button class="aname" data-act="go" data-h="r-${esc(r.id)}"><i class="sw" style="--c:${esc(D(r).color || '#888')}"></i>${esc(D(r).title)}</button><button class="btn" data-act="unarch" data-id="${esc(r.id)}">Unarchive</button></div>`).join('')}</details>` : '';
-  return starters + search + `<div class="grid" id="rgrid">` + addTile + live.map(r => {
+  const sortK = SORTS[ui.rsort] ? ui.rsort : 'recent';
+  const counts = {}; live.forEach(r => tagsOf(r).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+  const cats = allTags().filter(t => counts[t]);
+  if(recTag !== 'all' && !counts[recTag]) recTag = 'all';
+  const nFav = live.filter(r => favOf(r.id)).length; if(!nFav) recFav = false;
+  const catOn = recTag !== 'all';
+  const fbar = live.length > 1 ? `<div class="fbar2"><div class="fwrap"><button class="fpill ${catOn ? 'on' : ''}" data-act="catmenu" aria-haspopup="menu" aria-expanded="${catOpen}">${catOn ? esc(recTag) : 'Category'}${catOn ? `<span class="fx" data-act="catclear" role="button" aria-label="Clear category">✕</span>` : ICON_CHEV}</button>
+    ${catOpen ? `<div class="fmenu" role="menu"><button role="menuitem" class="${!catOn ? 'on' : ''}" data-act="catpick" data-t="all">All categories <span>${live.length}</span></button>${cats.map(t => `<button role="menuitem" class="${recTag === t ? 'on' : ''}" data-act="catpick" data-t="${esc(t)}">${esc(t)} <span>${counts[t]}</span></button>`).join('')}</div>` : ''}</div>
+    ${nFav ? `<button class="fpill favp ${recFav ? 'on' : ''}" data-act="favfilter" aria-pressed="${recFav}">${ICON_HEART}Favorites</button>` : ''}
+    <div class="fwrap fright"><button class="fpill sortp" data-act="sortmenu" aria-haspopup="menu" aria-expanded="${sortOpen}" aria-label="Sort: ${SORTS[sortK]}">${ICON_SORT}${SORTS[sortK]}</button>
+    ${sortOpen ? `<div class="fmenu right" role="menu">${Object.entries(SORTS).map(([k, l]) => `<button role="menuitem" class="${k === sortK ? 'on' : ''}" data-act="sortpick" data-k="${k}">${l}${k === sortK ? '<span>✓</span>' : ''}</button>`).join('')}</div>` : ''}</div></div>` : '';
+  const rank = r => { const p = progressOf(r); return p.done > 0 && p.done < p.total ? 0 : p.done === 0 ? 1 : 2; };
+  let shown = live.filter(r => (!catOn || tagsOf(r).includes(recTag)) && (!recFav || favOf(r.id)) && (sortK !== 'progress' || rank(r) === 0));
+  const pos = new Map(live.map((r, i) => [r.id, i]));
+  shown = shown.slice().sort((a, b) => (favOf(b.id) - favOf(a.id)) || (sortK === 'az' ? D(a).title.localeCompare(D(b).title) : sortK === 'made' ? (madeOf(b.id).n || 0) - (madeOf(a.id).n || 0) : sortK === 'progress' ? rank(a) - rank(b) : 0) || pos.get(a.id) - pos.get(b.id));
+  const q = recQ.trim().toLowerCase();
+  const filtered = catOn || recFav || sortK === 'progress';
+  return starters + search + fbar + `<div class="grid" id="rgrid">` + (filtered ? '' : q ? addTile.replace('<button class="tile addtile"', '<button hidden class="tile addtile"') : addTile) + shown.map(r => {
     const d = D(r), p = progressOf(r), pct = p.total ? Math.round(p.done / p.total * 100) : 0;
     const st = p.done === 0 ? 'Not started' : p.done === p.total ? 'Finished ✓' : `Step ${p.cur + 1} of ${p.total}`;
-    return `<div class="tile" role="link" tabindex="0" style="--c:${esc(d.color)}" data-act="go" data-h="r-${esc(r.id)}" data-q="${esc((d.title + ' ' + (d.short || '')).toLowerCase())}">
-      <span class="art">${pic(d)}</span><button class="tilex" data-act="recipex" data-id="${esc(r.id)}" aria-label="Archive or delete ${esc(d.title)}" title="Archive or delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      <span class="body"><h2>${esc(d.title)}</h2><span class="meta">${d.total ? `<span>⏱ ${esc(d.total)}</span>` : ''}${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}</span>
+    const tq = (d.title + ' ' + (d.short || '') + ' ' + tagsOf(r).join(' ')).toLowerCase(), tt = tagsOf(r).slice(0, 3);
+    return `<div class="tile" ${q && !tq.includes(q) ? 'hidden' : ''} role="link" tabindex="0" style="--c:${esc(d.color)}" data-act="go" data-h="r-${esc(r.id)}" data-q="${esc(tq)}">
+      <span class="art">${pic(d)}</span><button class="tilefav ${favOf(r.id) ? 'on' : ''}" data-act="fav" data-id="${esc(r.id)}" aria-pressed="${favOf(r.id)}" aria-label="${favOf(r.id) ? 'Remove from favorites' : 'Add to favorites'}" title="${favOf(r.id) ? 'Favorite' : 'Add to favorites'}">${ICON_HEART}</button><button class="tilex" data-act="recipex" data-id="${esc(r.id)}" aria-label="Archive or delete ${esc(d.title)}" title="Archive or delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <span class="body">${tt.length ? `<span class="ttags">${tt.map(t => `<i>${esc(t)}</i>`).join('')}</span>` : ''}<h2>${esc(d.title)}</h2><span class="meta">${d.total ? `<span>⏱ ${esc(d.total)}</span>` : ''}${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}</span>
       <span class="st">${st}</span><span class="bar"><i style="width:${pct}%"></i></span></span></div>`;
-  }).join('') + `</div><div class="card empty" id="rnone" hidden>No recipes match.</div>` + archBox;
+  }).join('') + `</div><div class="card empty" id="rnone" ${filtered && !shown.length ? '' : 'hidden'}>${sortK === 'progress' && !shown.length && !catOn && !recFav ? 'Nothing in progress right now. Open a recipe and check off a step to start.' : 'No recipes match.'}</div>` + archBox;
 }
 
 function renderRecipe(id){
@@ -396,6 +435,7 @@ function renderRecipe(id){
   <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(kindOf(d), artText(d))}</div><div class="artfg">${art(kindOf(d), artText(d)).replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<label class="heroedit" title="Change image" aria-label="Change image">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
     <div class="ttlrow"><h2>${esc(d.title)}</h2><div class="ttlbtns"><button class="ibtn" data-act="go" data-h="edit-${esc(r.id)}" aria-label="Edit recipe" title="Edit recipe">${ICON_PEN}</button><button class="ibtn ${moreOpen ? 'on' : ''}" data-act="more" aria-label="More options" aria-expanded="${moreOpen}">${ICON_MORE}</button>${moreOpen ? `<div class="moremenu" role="menu"><button role="menuitem" data-act="resetrecipe" data-id="${esc(r.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/></svg>Reset progress</button>${isArch(r.id) ? `<button role="menuitem" data-act="unarch" data-id="${esc(r.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10h14V9M10 13h4"/></svg>Unarchive</button>` : `<button role="menuitem" data-act="archive" data-id="${esc(r.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10h14V9M10 13h4"/></svg>Archive</button>`}<button role="menuitem" class="danger" data-act="delrecipe" data-id="${esc(r.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete recipe</button></div>` : ''}</div></div>
     <div class="meta">${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}${d.total ? `<span>⏱ ${esc(d.total)}</span>` : d.cook ? `<span>⏱ ${esc(d.cook)}</span>` : ''}${madeOf(r.id).n ? `<span class="made">♥ Made ${madeOf(r.id).n}×</span>` : ''}</div>
+    <div class="rtags">${tagsOf(r).map(t => `<span class="rtag">${esc(t)}<button class="rtx" data-act="tagtog" data-id="${esc(r.id)}" data-t="${esc(t)}" aria-label="Remove ${esc(t)} tag" title="Remove tag">✕</button></span>`).join('')}<button class="rtag add" data-act="tagedit" data-id="${esc(r.id)}">${tagsOf(r).length ? '+ Tag' : '+ Add a tag'}</button></div>
     ${srcs.length ? `<div class="srcline">From ${srcs.map((l, li) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(li === 0 ? hostOf(l.url) : (l.label || hostOf(l.url)))} ↗</a>`).join(' · ')}</div>` : ''}
     <div class="prog-line" style="margin-top:14px"><b>${p.total && p.done === p.total ? 'All done — enjoy!' : `${p.done} of ${p.total} steps`}</b>${p.total && p.done < p.total ? `<button class="mc" data-act="markall" data-id="${esc(r.id)}">Mark complete</button>` : (P().cook[r.id] || {}).before ? `<button class="mc undo" data-act="unmark" data-id="${esc(r.id)}" title="Go back to where you were"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Undo</button>` : `<span class="muted">${pct}%</span>`}</div>
     <div class="bar"><i style="width:${pct}%"></i></div>
@@ -408,6 +448,7 @@ function renderRecipe(id){
     ${links ? `<div class="card panel origbox"><b>Photos and tips</b><div class="lchips">${links}</div></div>` : ''}</div>
   </div>
   ${addSheet && addSheet.id === r.id ? `<div class="sheetbg" data-act="sheetclose"></div><div class="asksheet" role="dialog" aria-label="Add to your shopping list"><div class="askt">${addSheet.again ? 'Add ingredients to your list?' : 'Add to your shopping list'}</div><button class="askopt main" data-act="addall" data-id="${esc(r.id)}"><b>Add all ${ingLines(d).length} ingredients</b><span>Everything starts unchecked</span></button><button class="askopt" data-act="choose" data-id="${esc(r.id)}"><b>Choose ingredients</b><span>Tap + next to the ones you need</span></button><button class="linkbtn askcancel" data-act="sheetclose">${addSheet.again ? 'Not now' : 'Cancel'}</button></div>` : ''}
+  ${tagEdit === r.id ? `<div class="sheetbg" data-act="tagdone"></div><div class="asksheet tagsheet" role="dialog" aria-label="Tags for ${esc(d.title)}"><div class="askt">Tags</div><div class="tagpick">${allTags().map(t => { const on = tagsOf(r).includes(t); const own = (P().ctags || []).includes(t); return `<span class="tpw"><button class="tp ${on ? 'on' : ''} ${own ? 'own' : ''}" data-act="tagtog" data-id="${esc(r.id)}" data-t="${esc(t)}" aria-pressed="${on}">${on ? '✓ ' : ''}${esc(t)}</button>${own ? `<button class="tpdel" data-act="tagdel" data-t="${esc(t)}" aria-label="Delete the ${esc(t)} tag everywhere" title="Delete this tag">✕</button>` : ''}</span>`; }).join('')}</div><form class="newtag" data-form="newtag" data-id="${esc(r.id)}" autocomplete="off"><input id="newtag" data-keep placeholder="New tag, e.g. Holiday" maxlength="24" aria-label="New tag"><button class="btn" type="submit">Add</button></form><button class="btn primary tagdone" data-act="tagdone">Done</button></div>` : ''}
   ${choosing === r.id ? `<div class="selbar"><span>${chosenN ? `${chosenN} added to your list` : 'Tap + to add'}</span><button class="btn primary" data-act="choosedone">Done</button></div>` : ''}`;
 }
 function renderFab(r){
@@ -976,6 +1017,8 @@ document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]');
   if(menuOpen && !(el && el.dataset.act === 'menu')){ menuOpen = false; render(); }
   if(moreOpen && !(el && el.dataset.act === 'more')){ moreOpen = false; render(); }
+  if(catOpen && !(el && ['catmenu','catpick','catclear'].includes(el.dataset.act))){ catOpen = false; render(); }
+  if(sortOpen && !(el && ['sortmenu','sortpick'].includes(el.dataset.act))){ sortOpen = false; render(); }
   if(!el) return;
   const a = el.dataset.act, id = el.dataset.id, shop = user ? P().shop : {};
   if(a === 'menu'){ menuOpen = !menuOpen; render(); return; }
@@ -1025,6 +1068,18 @@ document.addEventListener('click', async e => {
   if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; delete o.before; syncMade(k, id); }); return; }
   if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { bankLegacy(k, id); k.progress.cook[id] = {i:{}, s:{}}; })); return; }
   if(a === 'finishok'){ const c = !!($('#clearRest') || {}).checked; $('#modalRoot').innerHTML = ''; newTrip(c); return; }
+  if(a === 'fav'){ e.stopPropagation(); const v = !favOf(id); mutate(k => { const f = k.progress.fav = k.progress.fav || {}; if(v) f[id] = true; else delete f[id]; }); return; }
+  if(a === 'catmenu'){ catOpen = !catOpen; sortOpen = false; render(); return; }
+  if(a === 'catclear'){ recTag = 'all'; catOpen = false; render(); return; }
+  if(a === 'catpick'){ recTag = el.dataset.t; catOpen = false; render(); return; }
+  if(a === 'favfilter'){ recFav = !recFav; render(); return; }
+  if(a === 'sortmenu'){ sortOpen = !sortOpen; catOpen = false; render(); return; }
+  if(a === 'sortpick'){ ui.rsort = el.dataset.k; saveUi(); sortOpen = false; render(); return; }
+  if(a === 'tagedit'){ tagEdit = id; render(); return; }
+  if(a === 'tagdel'){ const t = el.dataset.t, n = recipes.filter(r => tagsOf(r).includes(t)).length;
+    confirmBox(`Delete the “${t}” tag?`, n ? `It comes off ${n} recipe${n === 1 ? '' : 's'}. The recipes stay.` : 'It isn’t on any recipes.', 'Delete tag', () => mutate(k => { k.progress.ctags = (k.progress.ctags || []).filter(x => x !== t); const tg = k.progress.tags = k.progress.tags || {}; recipes.forEach(r => { const cur = tg[r.id] || autoTags(D(r)); if(cur.includes(t)) tg[r.id] = cur.filter(x => x !== t); }); if(recTag === t) recTag = 'all'; })); return; }
+  if(a === 'tagdone'){ tagEdit = null; render(); return; }
+  if(a === 'tagtog'){ const r = R(id); if(!r) return; const t = el.dataset.t, cur = tagsOf(r), nx = cur.includes(t) ? cur.filter(x => x !== t) : cur.concat(t); mutate(k => { (k.progress.tags = k.progress.tags || {})[id] = nx; }); return; }
   if(a === 'sclear'){ shopQ = ''; const qi = $('#shopq'); if(qi) qi.value = ''; render(); const q = $('#shopq'); if(q) q.focus({preventScroll:true}); return; }
   if(a === 'more'){ moreOpen = !moreOpen; render(); return; }
   if(a === 'addask'){ addSheet = {id}; render(); return; }
@@ -1081,7 +1136,7 @@ document.addEventListener('input', e => {
   if(e.target.id === 'shopq'){ shopQ = e.target.value; render(); return; }
   if(e.target.id === 'f-paste'){ const b = $('#f-parsebtn'); if(b) b.disabled = !e.target.value.trim(); }
   if(e.target.id === 'rsearch'){
-    const q = e.target.value.trim().toLowerCase(); let n = 0;
+    recQ = e.target.value; const q = e.target.value.trim().toLowerCase(); let n = 0;
     document.querySelectorAll('#rgrid .tile[data-q]').forEach(t => { const m = !q || t.dataset.q.includes(q); t.hidden = !m; if(m) n++; });
     const add = $('#rgrid .addtile'); if(add) add.hidden = !!q;
     let an = 0; document.querySelectorAll('#archbox .arow').forEach(t => { const m = !q || t.dataset.q.includes(q); t.hidden = !m; if(m) an++; });
@@ -1123,6 +1178,13 @@ document.addEventListener('change', async e => {
 document.addEventListener('submit', async e => {
   const kind = e.target.dataset.form; if(!kind) return; e.preventDefault();
   if(['signin','signup','forgot','newpass'].includes(kind)) return handleAuthForm(kind);
+  if(kind === 'newtag'){
+    const id = e.target.dataset.id, r = R(id), raw = ($('#newtag').value || '').replace(/\s+/g, ' ').trim(); if(!r || !raw) return;
+    const t = raw.charAt(0).toUpperCase() + raw.slice(1), ex = allTags().find(x => x.toLowerCase() === t.toLowerCase()) || t;
+    const cur = tagsOf(r);
+    mutate(k => { const c = k.progress.ctags = k.progress.ctags || []; if(!TAGS0.includes(ex) && !c.includes(ex)) c.push(ex); if(!cur.includes(ex)) (k.progress.tags = k.progress.tags || {})[id] = cur.concat(ex); });
+    $('#newtag').value = ''; return;
+  }
   if(kind === 'additem'){
     const name = $('#addName').value.trim(); if(!name) return;
     const qty = $('#addQty').value.trim(), section = $('#addSec').value || 'Other', forId = ($('#addFor') || {}).value || '';
@@ -1148,6 +1210,6 @@ document.addEventListener('submit', async e => {
     if(error) toast("Couldn't save your name"); else { user = data.user; toast('Saved'); render(); }
   }
 });
-window.addEventListener('hashchange', () => { addSheet = null; choosing = null; moreOpen = false; shopQ = ''; render(); });
+window.addEventListener('hashchange', () => { addSheet = null; choosing = null; moreOpen = false; shopQ = ''; catOpen = false; sortOpen = false; tagEdit = null; render(); });
 
 boot();
