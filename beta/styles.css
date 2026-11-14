@@ -490,3 +490,4 @@ body.dragging .dropzone{transform:translate(-50%,0);opacity:1;pointer-events:aut
 .tundo{border:0;background:none;color:#FF8A98;font:700 14px Inter,sans-serif;padding:0;cursor:pointer}
 #toast{white-space:nowrap;border:1.5px solid rgba(255,255,255,.18);box-shadow:0 8px 24px rgba(0,0,0,.25)}
 .srcline a{white-space:nowrap}
+@media(min-width:600px){.actrow .grow{flex:0 0 auto;padding:11px 22px}}
