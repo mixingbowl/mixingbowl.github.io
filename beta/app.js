@@ -365,7 +365,8 @@ const TAGRX = [['Desserts',/\b(pie|cakes?|cookies?|brownies?|frosting|tarts?|pud
 const MEAT = /chicken|beef|pork|bacon|sausage|\bham\b|turkey|fish|shrimp|salmon|tuna|steak|brisket|prosciutto|pepperoni|anchov|gelatin/;
 function autoTags(d){
   const t = (d.title || '').toLowerCase(), ing = (d.ingredients || []).flatMap(g => g.items || []).join(' ').toLowerCase();
-  const out = TAGRX.filter(([, rx]) => rx.test(t)).map(([k]) => k);
+  let out = TAGRX.filter(([, rx]) => rx.test(t)).map(([k]) => k);
+  if(out.includes('Sides') && out.some(x => ['Pasta','Pizza','Soups','Desserts','Salads','Breakfast'].includes(x))) out = out.filter(x => x !== 'Sides');
   ['Chicken','Beef','Pork'].forEach((k, i) => { if(!out.includes(k) && [/chicken/, /beef|steak|brisket/, /pork|bacon|\bham\b|sausage/][i].test(ing) && !out.includes('Desserts')) out.push(k); });
   if(!MEAT.test(ing + ' ' + t)) out.push('Vegetarian');
   else if(!out.includes('Desserts') && !out.some(x => ['Soups','Salads','Pizza','Pasta','Appetizers','Sides','Breakfast'].includes(x))) out.push('Mains');
@@ -397,11 +398,11 @@ function renderRecipes(){
     <div class="fwrap fright"><button class="fpill sortp" data-act="sortmenu" aria-haspopup="menu" aria-expanded="${sortOpen}" aria-label="Sort: ${SORTS[sortK]}">${ICON_SORT}${SORTS[sortK]}</button>
     ${sortOpen ? `<div class="fmenu right" role="menu">${Object.entries(SORTS).map(([k, l]) => `<button role="menuitem" class="${k === sortK ? 'on' : ''}" data-act="sortpick" data-k="${k}">${l}${k === sortK ? '<span>✓</span>' : ''}</button>`).join('')}</div>` : ''}</div></div>` : '';
   const rank = r => { const p = progressOf(r); return p.done > 0 && p.done < p.total ? 0 : p.done === 0 ? 1 : 2; };
-  let shown = live.filter(r => (!catOn || tagsOf(r).includes(recTag)) && (!recFav || favOf(r.id)));
+  let shown = live.filter(r => (!catOn || tagsOf(r).includes(recTag)) && (!recFav || favOf(r.id)) && (sortK !== 'progress' || rank(r) === 0));
   const pos = new Map(live.map((r, i) => [r.id, i]));
   shown = shown.slice().sort((a, b) => (favOf(b.id) - favOf(a.id)) || (sortK === 'az' ? D(a).title.localeCompare(D(b).title) : sortK === 'made' ? (madeOf(b.id).n || 0) - (madeOf(a.id).n || 0) : sortK === 'progress' ? rank(a) - rank(b) : 0) || pos.get(a.id) - pos.get(b.id));
   const q = recQ.trim().toLowerCase();
-  const filtered = catOn || recFav;
+  const filtered = catOn || recFav || sortK === 'progress';
   return starters + search + fbar + `<div class="grid" id="rgrid">` + (filtered ? '' : q ? addTile.replace('<button class="tile addtile"', '<button hidden class="tile addtile"') : addTile) + shown.map(r => {
     const d = D(r), p = progressOf(r), pct = p.total ? Math.round(p.done / p.total * 100) : 0;
     const st = p.done === 0 ? 'Not started' : p.done === p.total ? 'Finished ✓' : `Step ${p.cur + 1} of ${p.total}`;
@@ -410,7 +411,7 @@ function renderRecipes(){
       <span class="art">${pic(d)}</span><button class="tilefav ${favOf(r.id) ? 'on' : ''}" data-act="fav" data-id="${esc(r.id)}" aria-pressed="${favOf(r.id)}" aria-label="${favOf(r.id) ? 'Remove from favorites' : 'Add to favorites'}" title="${favOf(r.id) ? 'Favorite' : 'Add to favorites'}">${ICON_HEART}</button><button class="tilex" data-act="recipex" data-id="${esc(r.id)}" aria-label="Archive or delete ${esc(d.title)}" title="Archive or delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       <span class="body">${tt.length ? `<span class="ttags">${tt.map(t => `<i>${esc(t)}</i>`).join('')}</span>` : ''}<h2>${esc(d.title)}</h2><span class="meta">${d.total ? `<span>⏱ ${esc(d.total)}</span>` : ''}${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}</span>
       <span class="st">${st}</span><span class="bar"><i style="width:${pct}%"></i></span></span></div>`;
-  }).join('') + `</div><div class="card empty" id="rnone" ${filtered && !shown.length ? '' : 'hidden'}>No recipes match.</div>` + archBox;
+  }).join('') + `</div><div class="card empty" id="rnone" ${filtered && !shown.length ? '' : 'hidden'}>${sortK === 'progress' && !shown.length && !catOn && !recFav ? 'Nothing in progress right now. Open a recipe and check off a step to start.' : 'No recipes match.'}</div>` + archBox;
 }
 
 function renderRecipe(id){
