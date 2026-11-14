@@ -1011,7 +1011,7 @@ document.addEventListener('click', async e => {
   if(a === 'addask'){ addSheet = {id}; render(); return; }
   if(a === 'sheetclose'){ addSheet = null; render(); return; }
   if(a === 'addall'){ const r = R(id); if(!r) return; const lines = ingLines(D(r)); addSheet = null; mutate(k => addFresh(k, id, lines)); toast(`Added ${lines.length} ingredients to your list`); return; }
-  if(a === 'choose'){ addSheet = null; choosing = id; chosenN = 0; render(); setTimeout(() => { const c = $('.ing-col'); if(c) window.scrollTo({top: c.getBoundingClientRect().top + scrollY - 130, behavior: 'smooth'}); }, 30); return; }
+  if(a === 'choose'){ addSheet = null; choosing = id; chosenN = 0; mutate(k => unlinkRecipe(k, id)); setTimeout(() => { const c = $('.ing-col'); if(c) window.scrollTo({top: c.getBoundingClientRect().top + scrollY - 130, behavior: 'smooth'}); }, 30); return; }
   if(a === 'choosedone'){ choosing = null; render(); if(chosenN) toast(`${chosenN} added to your list`); return; }
   if(a === 'ingadd'){ const r = R(id); if(!r) return; const [gi, ki] = el.dataset.k.split('-').map(Number); const line = ((D(r).ingredients || [])[gi] || {}).items[ki]; if(!line) return;
     if(ingListed(id, line)){ chosenN = Math.max(0, chosenN - 1); const key = splitIngredient(line).key; mutate(k => unlinkRecipe(k, id, new Set([key]))); return; }
