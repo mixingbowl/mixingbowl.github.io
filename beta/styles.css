@@ -512,3 +512,8 @@ body.dragging .dropzone{transform:translate(-50%,0);opacity:1;pointer-events:aut
 .tf2-links .tf-link{display:inline-block;border:0;background:none;color:var(--accent);font:700 14px Inter,sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:6px}
 .tf2-t b{font-size:16px;line-height:1.2}
 @media(max-width:380px){.tf2-ic{display:none}}
+/* add-item form: tidy rows */
+.addf .btn{grid-column:auto}
+@media(min-width:700px){.addf{grid-template-columns:minmax(0,1.8fr) minmax(0,.9fr) minmax(0,1.1fr) minmax(0,1.3fr) auto auto}.addf .btn{padding-left:18px;padding-right:18px}}
+.clearopt{display:flex;align-items:center;gap:10px;margin:14px 0 4px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;font:600 15px Inter,sans-serif;cursor:pointer}
+.clearopt input{width:20px;height:20px;accent-color:#D7263D;flex:none;margin:0}
