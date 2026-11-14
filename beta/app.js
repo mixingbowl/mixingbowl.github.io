@@ -223,7 +223,18 @@ function syncMade(k, id){
   else if(!full && o.counted){ o.counted = false; const c = m[id] || {n:0}; m[id] = Object.assign({}, c, {n: Math.max(0, (c.n || 0) - 1)}); }
 }
 const ingLines = d => (d.ingredients || []).flatMap(g => g.items || []).filter(l => splitIngredient(l).key);
+function unlinkRecipe(k, id, keys){
+  const marks = k.progress.shop = k.progress.shop || {};
+  k.shopping.items = k.shopping.items.filter(i => {
+    if(!(i.recipes || []).includes(id)) return true;
+    if(keys && !keys.has(i.key || splitIngredient(i.name).key)) return true;
+    i.recipes = i.recipes.filter(x => x !== id);
+    if(i.recipes.length || i.custom) return true;
+    delete marks[i.id]; return false;
+  });
+}
 function addFresh(k, id, lines){
+  if(!(k.progress.active[id] !== false && !(k.progress.archived || {})[id] && !(k.progress.done || {})[id])) unlinkRecipe(k, id);
   addIngredientsTo(k, id, [{items: lines}]);
   const keys = new Set(lines.map(l => splitIngredient(l).key));
   const marks = k.progress.shop = k.progress.shop || {};
@@ -366,7 +377,7 @@ function renderRecipe(id){
   const ings = (d.ingredients || []).map((g, gi) => (g.group ? `<div class="grp">${esc(g.group)}</div>` : '') + (g.items || []).map((t, k) => { const key = gi + '-' + k; const row = `<button class="ing ${c.i[key] ? 'on' : ''}" data-act="ing" data-id="${esc(r.id)}" data-k="${key}"><i class="box">${CHECK}</i><span>${fmt(t)}</span></button>`;
     if(choosing !== r.id || !splitIngredient(t).key) return row;
     const inl = ingListed(r.id, t);
-    return `<div class="ingrow">${row}<button class="ingadd ${inl ? 'in' : ''}" data-act="ingadd" data-id="${esc(r.id)}" data-k="${key}" aria-label="${inl ? 'On your list' : 'Add to shopping list'}">${inl ? CHECK.replace('#fff', 'currentColor') : ICON_PLUS}</button></div>`; }).join('')).join('');
+    return `<div class="ingrow">${row}<button class="ingadd ${inl ? 'in' : ''}" data-act="ingadd" data-id="${esc(r.id)}" data-k="${key}" aria-label="${inl ? 'Remove from shopping list' : 'Add to shopping list'}" title="${inl ? 'On your list. Tap to remove' : 'Add to shopping list'}">${inl ? CHECK.replace('#fff', 'currentColor') : ICON_PLUS}</button></div>`; }).join('')).join('');
   let n = 0; const curKey = p.cur >= 0 && p.all[p.cur] ? p.all[p.cur].key : null;
   const steps = (d.steps || []).map((sec, si) => (sec.section ? `<div class="stephead">${esc(sec.section)}</div>` : '') + (sec.items || []).map((st, k) => {
     const key = si + '-' + k; n++; const done = !!c.s[key]; const cur = !done && key === curKey;
@@ -1002,7 +1013,9 @@ document.addEventListener('click', async e => {
   if(a === 'addall'){ const r = R(id); if(!r) return; const lines = ingLines(D(r)); addSheet = null; mutate(k => addFresh(k, id, lines)); toast(`Added ${lines.length} ingredients to your list`); return; }
   if(a === 'choose'){ addSheet = null; choosing = id; chosenN = 0; render(); setTimeout(() => { const c = $('.ing-col'); if(c) window.scrollTo({top: c.getBoundingClientRect().top + scrollY - 130, behavior: 'smooth'}); }, 30); return; }
   if(a === 'choosedone'){ choosing = null; render(); if(chosenN) toast(`${chosenN} added to your list`); return; }
-  if(a === 'ingadd'){ const r = R(id); if(!r) return; const [gi, ki] = el.dataset.k.split('-').map(Number); const line = ((D(r).ingredients || [])[gi] || {}).items[ki]; if(!line || ingListed(id, line)) return; chosenN++; mutate(k => addFresh(k, id, [line])); return; }
+  if(a === 'ingadd'){ const r = R(id); if(!r) return; const [gi, ki] = el.dataset.k.split('-').map(Number); const line = ((D(r).ingredients || [])[gi] || {}).items[ki]; if(!line) return;
+    if(ingListed(id, line)){ chosenN = Math.max(0, chosenN - 1); const key = splitIngredient(line).key; mutate(k => unlinkRecipe(k, id, new Set([key]))); return; }
+    chosenN++; mutate(k => addFresh(k, id, [line])); return; }
   if(a === 'markall'){ const r = R(id); if(!r) return; const prev = JSON.parse(JSON.stringify(cookOf(id).s)); const keys = stepList(D(r)).map(x => x.key);
     mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; o.s = o.s || {}; o.before = Object.assign({}, prev); keys.forEach(x => { o.s[x] = true; }); syncMade(k, id); });
     toast('Marked complete 🎉'); return; }
