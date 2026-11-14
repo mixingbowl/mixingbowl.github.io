@@ -212,7 +212,9 @@ function removeRecipeFrom(k, recipeId){
 }
 
 /* ---- cooking rounds: made count, fresh list adds ---- */
-const madeOf = id => ((P().made || {})[id]) || {n:0};
+const legacyDone = id => { const r = R(id); if(!r) return false; const all = stepList(D(r)); const o = P().cook[id] || {}; return all.length > 0 && !o.counted && all.every(x => (o.s || {})[x.key]); };
+const madeOf = id => { const m = ((P().made || {})[id]) || {n:0}; return legacyDone(id) ? Object.assign({}, m, {n: (m.n || 0) + 1}) : m; };
+function bankLegacy(k, id){ const r = R(id); if(!r) return; const all = stepList(D(r)); const o = k.progress.cook[id] || {}; if(all.length && !o.counted && all.every(x => (o.s || {})[x.key])){ const m = k.progress.made = k.progress.made || {}; const c = m[id] || {n:0}; m[id] = {n: (c.n || 0) + 1, last: c.last || ''}; } }
 function syncMade(k, id){
   const r = R(id); if(!r) return; const all = stepList(D(r)); const o = k.progress.cook[id] = k.progress.cook[id] || {};
   const full = all.length > 0 && all.every(x => (o.s || {})[x.key]);
@@ -993,7 +995,7 @@ document.addEventListener('click', async e => {
   }
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
   if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; syncMade(k, id); }); return; }
-  if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { k.progress.cook[id] = {i:{}, s:{}}; })); return; }
+  if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { bankLegacy(k, id); k.progress.cook[id] = {i:{}, s:{}}; })); return; }
   if(a === 'more'){ moreOpen = !moreOpen; render(); return; }
   if(a === 'addask'){ addSheet = {id}; render(); return; }
   if(a === 'sheetclose'){ addSheet = null; render(); return; }
@@ -1004,7 +1006,7 @@ document.addEventListener('click', async e => {
   if(a === 'markall'){ const r = R(id); if(!r) return; const prev = JSON.parse(JSON.stringify(cookOf(id).s)); const keys = stepList(D(r)).map(x => x.key);
     mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; o.s = o.s || {}; keys.forEach(x => { o.s[x] = true; }); syncMade(k, id); });
     toast('Marked complete', () => mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; o.s = Object.assign({}, prev); syncMade(k, id); })); return; }
-  if(a === 'again'){ mutate(k => { k.progress.cook[id] = {i:{}, s:{}}; }); addSheet = {id, again: true}; render(); window.scrollTo({top: 0, behavior: 'smooth'}); return; }
+  if(a === 'again'){ mutate(k => { bankLegacy(k, id); k.progress.cook[id] = {i:{}, s:{}}; }); addSheet = {id, again: true}; render(); window.scrollTo({top: 0, behavior: 'smooth'}); return; }
   if(a === 'recipex'){ const r = R(id); if(!r) return;
     $('#modalRoot').innerHTML = `<div class="modal" data-act="mclose"><div class="card" data-stop><h3>${esc(D(r).title)}</h3><div class="muted">Archive hides it until you want it again. Delete removes it for good.</div><div class="row"><button class="btn" data-act="mclose">Cancel</button><button class="btn" data-act="archive" data-id="${esc(id)}">Archive</button><button class="btn dangerbtn" data-act="delrecipe" data-id="${esc(id)}">Delete</button></div></div></div>`;
     return; }
