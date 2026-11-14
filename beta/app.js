@@ -244,23 +244,6 @@ function addFresh(k, id, lines){
 }
 const ingListed = (id, line) => { const key = splitIngredient(line).key; return allItems().some(i => (i.recipes || []).includes(id) && (i.key || splitIngredient(i.name).key) === key && !P().shop[i.id]) && isActive(id) && !(P().done || {})[id]; };
 let addSheet = null, choosing = null, chosenN = 0, moreOpen = false, shopQ = '';
-/* one shopping-list line -> {name, qty}: "milk (1 gal)", "2 lbs chicken", "eggs x12", "- bread" */
-function parseListLine(raw){
-  let t = String(raw || '').replace(/^\s*(?:[-•*–·▪◦]|\d+[.)]|\[\s?[xX]?\s?\])\s+/, '').replace(/\s+/g, ' ').trim();
-  if(!t) return null;
-  let name = t, qty = '', m;
-  if((m = t.match(/^(.*?)\s*\(([^)]+)\)\s*$/)) && /\d|[½¼¾⅓⅔]|dozen|bunch|bag|box|can|jar|pack|gal|lb|oz/i.test(m[2])){ name = m[1]; qty = m[2]; }
-  else if((m = t.match(/^(.*?)\s*(?:\s[xX]\s?|\s?[:–—]\s|\s-\s)\s*(\d.*)$/))){ name = m[1]; qty = m[2]; }
-  else if(/^[\d½¼¾⅓⅔⅛]/.test(t)){ const sp = splitIngredient(t); if(sp.qty){ qty = sp.qty; name = sp.name; } }
-  name = name.replace(/[,;:\-–\s]+$/, '').trim(); if(!name) return null;
-  return {name: name.charAt(0).toUpperCase() + name.slice(1), qty: prettyFractions(qty.trim())};
-}
-function addListItems(lines, forId, sec){
-  const parsed = lines.map(parseListLine).filter(Boolean); if(!parsed.length) return 0;
-  const stamp = Date.now().toString(36);
-  mutate(k => { parsed.forEach((p, n) => { const id = 'c-' + stamp + n + '-' + p.name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 10); if(k.shopping.items.some(i => i.id === id)) return; const g = guessSection(p.name); k.shopping.items.push({id, name: p.name, qty: p.qty, section: sec || (g && g !== 'Other' ? g : 'Other'), key: splitIngredient(p.name).key, recipes: forId ? [forId] : [], custom: true}); }); if(forId) k.progress.active[forId] = true; });
-  return parsed.length;
-}
 const hostOf = u => { try{ return new URL(u).hostname.replace(/^www\./, ''); }catch(e){ return 'website'; } };
 const ICON_PEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
 const ICON_MORE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
@@ -362,13 +345,12 @@ function renderShopping(){
   ${Q ? `<div class="qnote" aria-live="polite">${pool.length ? `${pool.length} match${pool.length === 1 ? '' : 'es'} across Need, In cart and Have` : `Nothing on your list matches “${esc(shopQ.trim())}”`}</div>` : ''}
   ${!Q && (all.length || (P().trips || []).length) ? `<div class="seg" role="group" aria-label="Show">${fbtn('all','All')}${fbtn('need','Need')}${fbtn('cart','In cart')}${fbtn('have','Have')}</div>` : ''}
   ${Q ? '' : ui.addOpen ? `<form class="card addcard addf" data-form="additem" autocomplete="off">
-      <input id="addName" data-keep placeholder="Item, e.g. milk (1 gal)" maxlength="400" required>
-      <input id="addQty" data-keep placeholder="Amount (optional)" maxlength="60">
+      <input id="addName" data-keep placeholder="Item (e.g. blueberries)" maxlength="80" required>
+      <input id="addQty" data-keep placeholder="Amount" aria-label="Amount (optional)" maxlength="60">
       <select id="addSec" data-keep aria-label="Section">${secOpts.map(s => `<option ${s === ui.sec ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
-      <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No specific recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
+      <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
       <button class="btn primary" type="submit">+ Add</button>
       <button class="btn" type="button" data-act="addclose">Done</button>
-      <div class="addtip">Tip: paste a whole list and each line becomes its own item.</div>
     </form>` : `<button class="addrow" data-act="addopen"><span>+</span> Add an item</button>`}
   <div class="f-${f}">${secs || (Q ? '' : `<div class="card empty">${!all.length ? 'Nothing here yet. Open a recipe and tap <b>Add to shopping list</b>, or add an item above.' : f === 'have' ? 'Nothing marked “Have it” yet.' : f === 'cart' ? 'Nothing in your cart yet.' : "All set — time to cook! 🎉"}</div>`)}</div>
   ${all.length || (P().trips || []).length ? `${all.length && !Q ? `<div class="tripfoot2"><div class="tf2-ic" aria-hidden="true">🛒</div><div class="tf2-t"><b>Back from the store?</b><span>${cnt.cart} in your cart · ${cnt.need} still needed</span></div><button class="btn primary" data-act="resetshop">Finish trip</button></div>` : ''}<div class="tf2-links"><button class="tf-link" data-act="go" data-h="trips">Past trips (${(P().trips || []).length})</button></div>` : ''}
@@ -685,7 +667,7 @@ function finishRecipeTrip(id){
   });
   toast(name + ' moved to Past trips');
 }
-function newTrip(){
+function newTrip(clearRest){
   const at = new Date().toISOString(), live = recipes.filter(r => isActive(r.id) && !(P().done || {})[r.id]);
   const fin0 = live.filter(r => { const its = allItems().filter(i => (i.recipes || []).includes(r.id)); return its.length && its.every(i => P().shop[i.id]); });
   const moved = fin0.map(r => D(r).short || D(r).title);
@@ -709,8 +691,18 @@ function newTrip(){
     Object.keys(marks).forEach(id => { if(marks[id] === 'bought') marks[id] = 'have'; });
     k.shopping.items = k.shopping.items.filter(i => !loose.includes(i));
     shown.forEach(i => { if(marks[i.id]) logged[i.id] = true; });
+    if(clearRest){
+      const liveIds = live.map(r => r.id);
+      k.shopping.items = k.shopping.items.filter(i => {
+        if(i.custom && !(i.recipes || []).some(x => R(x))){ delete marks[i.id]; delete logged[i.id]; return false; }
+        if(!(i.recipes || []).some(x => liveIds.includes(x))) return true;
+        i.recipes = i.recipes.filter(x => !liveIds.includes(x)); if(i.recipes.length) return true;
+        delete marks[i.id]; delete logged[i.id]; return false;
+      });
+      liveIds.forEach(id => { k.progress.active[id] = false; (k.progress.done = k.progress.done || {})[id] = true; });
+    }
   });
-  toast(moved.length ? moved.join(', ') + ' moved to Past trips' : 'Trip saved. Your list is ready.');
+  toast(clearRest ? 'Trip saved. Your list is cleared.' : moved.length ? moved.join(', ') + ' moved to Past trips' : 'Trip saved. Your list is ready.');
 }
 /* enter-kitchen gate */
 let gate = 'gate';
@@ -1023,12 +1015,14 @@ document.addEventListener('click', async e => {
     return;
   }
   if(a === 'resetshop'){
-    confirmBox('Finish this trip?', 'What’s in your cart is saved to Past trips, along with any recipe you have everything for. Anything you still need stays on your list.', 'Finish trip', () => newTrip());
+    const need = visibleItems().filter(i => !shop[i.id]).length;
+    $('#modalRoot').innerHTML = `<div class="modal" data-act="mclose"><div class="card" data-stop><h3>Finish this trip?</h3><div class="muted">Your cart goes to Past trips.${need ? ' Anything left stays on your list.' : ''}</div>${need ? `<label class="clearopt"><input type="checkbox" id="clearRest"><span>Also clear the ${need} item${need === 1 ? '' : 's'} left</span></label>` : ''}<div class="row"><button class="btn" data-act="mclose">Cancel</button><button class="btn primary" data-act="finishok">Finish trip</button></div></div></div>`;
     return;
   }
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
   if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; delete o.before; syncMade(k, id); }); return; }
   if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { bankLegacy(k, id); k.progress.cook[id] = {i:{}, s:{}}; })); return; }
+  if(a === 'finishok'){ const c = !!($('#clearRest') || {}).checked; $('#modalRoot').innerHTML = ''; newTrip(c); return; }
   if(a === 'sclear'){ shopQ = ''; const qi = $('#shopq'); if(qi) qi.value = ''; render(); const q = $('#shopq'); if(q) q.focus({preventScroll:true}); return; }
   if(a === 'more'){ moreOpen = !moreOpen; render(); return; }
   if(a === 'addask'){ addSheet = {id}; render(); return; }
@@ -1070,7 +1064,7 @@ document.addEventListener('click', async e => {
   if(a === 'timer'){ startTimer(+el.dataset.min, el.dataset.label); return; }
   if(a === 'untimer'){ timers = timers.filter(t => t.id !== id); drawTimers(); return; }
   if(a === 'jump'){ const s = document.getElementById('s-' + el.dataset.k); if(s) s.scrollIntoView({behavior:'smooth', block:'center'}); return; }
-  if(a === 'mclose'){ $('#modalRoot').innerHTML = ''; return; }
+  if(a === 'mclose'){ if(e.target.closest('[data-stop]') && el.classList.contains('modal')) return; $('#modalRoot').innerHTML = ''; return; }
   if(a === 'mok'){ $('#modalRoot').innerHTML = ''; const fn = confirmFn; confirmFn = null; if(fn) fn(); return; }
   if(a === 'signout'){ await flush(); try{ sessionStorage.removeItem('mb-in'); }catch(err){} gate = 'gate'; await sb.auth.signOut(); location.hash = ''; return; }
   if(a === 'enter'){ enterKitchen(); return; }
@@ -1080,14 +1074,6 @@ document.addEventListener('click', async e => {
     try{ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; render(); }); toast('Screen will stay on'); render(); }
     catch(err){ wantWake = false; toast("Not supported on this browser"); }
   }
-});
-document.addEventListener('paste', e => {
-  if(e.target.id !== 'addName') return;
-  const txt = (e.clipboardData || window.clipboardData).getData('text') || ''; const lines = txt.split(/\r?\n/).filter(l => l.trim());
-  if(lines.length < 2) return;
-  e.preventDefault(); const forId = ($('#addFor') || {}).value || '';
-  const n = addListItems(lines, forId, '');
-  if(n){ if(ui.filter === 'cart' || ui.filter === 'have'){ ui.filter = 'all'; saveUi(); } render(); toast(`Added ${n} items`); }
 });
 document.addEventListener('input', e => {
   if(e.target.id === 'shopq'){ shopQ = e.target.value; render(); return; }
@@ -1136,9 +1122,8 @@ document.addEventListener('submit', async e => {
   const kind = e.target.dataset.form; if(!kind) return; e.preventDefault();
   if(['signin','signup','forgot','newpass'].includes(kind)) return handleAuthForm(kind);
   if(kind === 'additem'){
-    const raw = $('#addName').value.trim(); if(!raw) return;
-    const pl = parseListLine(raw) || {name: raw, qty: ''}; const name = pl.name;
-    const qty = $('#addQty').value.trim() || pl.qty, section = $('#addSec').value || 'Other', forId = ($('#addFor') || {}).value || '';
+    const name = $('#addName').value.trim(); if(!name) return;
+    const qty = $('#addQty').value.trim(), section = $('#addSec').value || 'Other', forId = ($('#addFor') || {}).value || '';
     const id = 'c-' + Date.now().toString(36) + rid().slice(0, 4);
     mutate(k => { if(!k.shopping.items.some(i => i.id === id)) k.shopping.items.push({id, name, qty, section, key: splitIngredient(name).key, recipes: forId ? [forId] : [], custom:true}); if(forId) k.progress.active[forId] = true; });
     ui.sec = section; saveUi(); $('#addName').value = ''; $('#addQty').value = '';
