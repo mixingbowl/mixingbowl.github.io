@@ -541,3 +541,10 @@ button.rtag.add{border-style:dashed;color:#D7263D;border-color:#E9B7BE;cursor:po
 .tagpick{display:flex;flex-wrap:wrap;gap:6px;max-height:46vh;overflow:auto}.tp{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:7px 12px;font:600 14px Inter,sans-serif;color:var(--ink);cursor:pointer}.tp.on{background:#141414;color:#fff;border-color:#141414}
 .newtag{display:flex;gap:8px}.newtag input{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font:500 16px Inter,sans-serif}
 .tagdone{justify-content:center}
+.rtag{display:inline-flex;align-items:center;gap:4px;padding-right:4px}
+.rtx{border:0;background:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:10px;color:var(--muted);cursor:pointer;padding:0}
+.rtx:hover{background:#F3EEE6;color:#C8102E}
+button.rtag.add{padding-right:10px}
+.tpw{display:inline-flex;align-items:center;position:relative}
+.tpdel{border:0;background:none;color:var(--muted);font-size:11px;width:22px;height:22px;border-radius:50%;margin-left:-4px;cursor:pointer;padding:0}
+.tpdel:hover{color:#C8102E;background:#F6F2EB}
