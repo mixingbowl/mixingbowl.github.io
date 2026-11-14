@@ -494,3 +494,21 @@ body.dragging .dropzone{transform:translate(-50%,0);opacity:1;pointer-events:aut
 @media(min-width:820px){.ing-col{position:sticky;top:128px;max-height:calc(100vh - 148px)}}
 .mc.undo{display:inline-flex;align-items:center;gap:5px;color:var(--muted)}.mc.undo svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}.mc.undo:hover{color:var(--ink)}
 .ingadd.in{cursor:pointer}
+
+/* shopping v2: search + finish trip */
+.shopsearch{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:0 8px 0 12px;margin:0 0 12px;height:46px}
+.shopsearch.on,.shopsearch:focus-within{border-color:#141414}
+.shopsearch svg{width:18px;height:18px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;flex:none}
+.shopsearch input{flex:1;min-width:0;border:0;outline:0;background:none;font:500 16px Inter,sans-serif;color:var(--ink);-webkit-appearance:none;appearance:none}
+.shopsearch input::-webkit-search-cancel-button{display:none}
+.sclear{border:0;background:#EEE9E1;border-radius:50%;width:26px;height:26px;font-size:12px;color:var(--muted);flex:none;cursor:pointer}
+.qnote{font:500 14px Inter,sans-serif;color:var(--muted);margin:-2px 4px 12px}
+.name mark{background:#FFE08A;color:inherit;border-radius:3px;padding:0 1px}
+.tripfoot2{display:flex;align-items:center;gap:12px;background:#fff;border:2px solid #141414;box-shadow:0 5px 0 #141414;border-radius:16px;padding:14px 14px 14px 16px;margin-top:22px}
+.tf2-ic{font-size:26px;line-height:1}.tf2-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.tf2-t b{font:400 17px 'Archivo Black',sans-serif}.tf2-t span{font:500 14px Inter,sans-serif;color:var(--muted)}
+.tripfoot2 .btn{flex:none;white-space:nowrap;padding:11px 16px}
+.tf2-links{text-align:center;margin:14px 0 4px}
+.addtip{grid-column:1/-1;font:500 13px Inter,sans-serif;color:var(--muted)}
+.tf2-links .tf-link{display:inline-block;border:0;background:none;color:var(--accent);font:700 14px Inter,sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:6px}
+.tf2-t b{font-size:16px;line-height:1.2}
+@media(max-width:380px){.tf2-ic{display:none}}
