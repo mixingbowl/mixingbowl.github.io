@@ -261,6 +261,7 @@ function route(){
 let lastView = '';
 function render(){
   const kept = {}; document.querySelectorAll('[data-keep]').forEach(el => { if(el.id) kept[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
+  const icol = document.querySelector('.ing-col'), icolTop = icol ? icol.scrollTop : 0;
   const ae = document.activeElement && document.activeElement.id && document.activeElement.hasAttribute('data-keep') ? document.activeElement : null;
   let sel = null; try{ sel = ae && ae.selectionStart != null ? [ae.selectionStart, ae.selectionEnd] : null; }catch(e){}
   const r = route();
@@ -290,6 +291,7 @@ function render(){
     maybeTour();
   }
   const sameView = (r.v + (r.id || '')) === lastView;
+  if(sameView && icolTop){ const ic = document.querySelector('.ing-col'); if(ic) ic.scrollTop = icolTop; }
   if(sameView) document.querySelectorAll('[data-keep]').forEach(el => { if(el.id && kept[el.id] != null && el.type !== 'file'){ if(el.type === 'checkbox') el.checked = kept[el.id]; else el.value = kept[el.id]; } });
   { const fp = $('#f-paste'), fb = $('#f-parsebtn'); if(fp && fb) fb.disabled = !fp.value.trim(); }
   if(ae && sameView){ const el = document.getElementById(ae.id); if(el){ el.focus({preventScroll:true}); if(sel && el.setSelectionRange) try{ el.setSelectionRange(sel[0], sel[1]); }catch(e){} } }
