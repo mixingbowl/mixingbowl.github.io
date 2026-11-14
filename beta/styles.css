@@ -493,3 +493,4 @@ body.dragging .dropzone{transform:translate(-50%,0);opacity:1;pointer-events:aut
 @media(min-width:600px){.actrow .grow{flex:0 0 auto;padding:11px 22px}}
 @media(min-width:820px){.ing-col{position:sticky;top:128px;max-height:calc(100vh - 148px)}}
 .mc.undo{display:inline-flex;align-items:center;gap:5px;color:var(--muted)}.mc.undo svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}.mc.undo:hover{color:var(--ink)}
+.ingadd.in{cursor:pointer}
