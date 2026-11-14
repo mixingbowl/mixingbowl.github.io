@@ -38,7 +38,7 @@ function normalize(row){
 
 let statusNow = {kind:'', text:''};
 function setStatus(kind, text){ statusNow = {kind, text}; const el = $('#status'); if(!el) return; el.className = 'status ' + kind; el.querySelector('span').textContent = text; }
-let toastT; function toast(t){ const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2400); }
+let toastT; function toast(t, undo){ const el = $('#toast'); el.textContent = t; if(undo){ const b = document.createElement('button'); b.className = 'tundo'; b.textContent = 'Undo'; b.onclick = () => { el.classList.remove('show'); undo(); }; el.appendChild(b); } el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), undo ? 5000 : 2400); }
 
 /* ------------- saving the kitchen row (shopping + progress) -------------
    Each change is a small function. It runs on the local copy right away, and on save
@@ -211,6 +211,44 @@ function removeRecipeFrom(k, recipeId){
   delete k.progress.cook[recipeId]; delete k.progress.active[recipeId]; if(k.progress.done) delete k.progress.done[recipeId];
 }
 
+/* ---- cooking rounds: made count, fresh list adds ---- */
+const legacyDone = id => { const r = R(id); if(!r) return false; const all = stepList(D(r)); const o = P().cook[id] || {}; return all.length > 0 && !o.counted && all.every(x => (o.s || {})[x.key]); };
+const madeOf = id => { const m = ((P().made || {})[id]) || {n:0}; return legacyDone(id) ? Object.assign({}, m, {n: (m.n || 0) + 1}) : m; };
+function bankLegacy(k, id){ const r = R(id); if(!r) return; const all = stepList(D(r)); const o = k.progress.cook[id] || {}; if(all.length && !o.counted && all.every(x => (o.s || {})[x.key])){ const m = k.progress.made = k.progress.made || {}; const c = m[id] || {n:0}; m[id] = {n: (c.n || 0) + 1, last: c.last || ''}; } }
+function syncMade(k, id){
+  const r = R(id); if(!r) return; const all = stepList(D(r)); const o = k.progress.cook[id] = k.progress.cook[id] || {};
+  const full = all.length > 0 && all.every(x => (o.s || {})[x.key]);
+  const m = k.progress.made = k.progress.made || {};
+  if(full && !o.counted){ o.counted = true; const c = m[id] || {n:0}; m[id] = {n: (c.n || 0) + 1, last: new Date().toISOString().slice(0, 10)}; }
+  else if(!full && o.counted){ o.counted = false; const c = m[id] || {n:0}; m[id] = Object.assign({}, c, {n: Math.max(0, (c.n || 0) - 1)}); }
+}
+const ingLines = d => (d.ingredients || []).flatMap(g => g.items || []).filter(l => splitIngredient(l).key);
+function unlinkRecipe(k, id, keys){
+  const marks = k.progress.shop = k.progress.shop || {};
+  k.shopping.items = k.shopping.items.filter(i => {
+    if(!(i.recipes || []).includes(id)) return true;
+    if(keys && !keys.has(i.key || splitIngredient(i.name).key)) return true;
+    i.recipes = i.recipes.filter(x => x !== id);
+    if(i.recipes.length || i.custom) return true;
+    delete marks[i.id]; return false;
+  });
+}
+function addFresh(k, id, lines){
+  if(!(k.progress.active[id] !== false && !(k.progress.archived || {})[id] && !(k.progress.done || {})[id])) unlinkRecipe(k, id);
+  addIngredientsTo(k, id, [{items: lines}]);
+  const keys = new Set(lines.map(l => splitIngredient(l).key));
+  const marks = k.progress.shop = k.progress.shop || {};
+  k.shopping.items.forEach(i => { if((i.recipes || []).includes(id) && keys.has(i.key || splitIngredient(i.name).key)) delete marks[i.id]; });
+  k.progress.active[id] = true; if(k.progress.done) delete k.progress.done[id];
+  if(k.progress.archived) delete k.progress.archived[id];
+}
+const ingListed = (id, line) => { const key = splitIngredient(line).key; return allItems().some(i => (i.recipes || []).includes(id) && (i.key || splitIngredient(i.name).key) === key && !P().shop[i.id]) && isActive(id) && !(P().done || {})[id]; };
+let addSheet = null, choosing = null, chosenN = 0, moreOpen = false;
+const hostOf = u => { try{ return new URL(u).hostname.replace(/^www\./, ''); }catch(e){ return 'website'; } };
+const ICON_PEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg>';
+const ICON_MORE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+const ICON_PLUS = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>';
+
 /* ---------------- render ---------------- */
 function route(){
   const h = (location.hash || '').slice(1);
@@ -336,34 +374,40 @@ function renderRecipe(id){
   const r = R(id);
   if(!r) return `<button class="back" data-act="go" data-h="recipes">← All recipes</button><div class="card empty">That recipe isn't here anymore.</div>`;
   const d = D(r), c = cookOf(r.id), p = progressOf(r), pct = p.total ? Math.round(p.done / p.total * 100) : 0;
-  const ings = (d.ingredients || []).map((g, gi) => (g.group ? `<div class="grp">${esc(g.group)}</div>` : '') + (g.items || []).map((t, k) => { const key = gi + '-' + k; return `<button class="ing ${c.i[key] ? 'on' : ''}" data-act="ing" data-id="${esc(r.id)}" data-k="${key}"><i class="box">${CHECK}</i><span>${fmt(t)}</span></button>`; }).join('')).join('');
+  const ings = (d.ingredients || []).map((g, gi) => (g.group ? `<div class="grp">${esc(g.group)}</div>` : '') + (g.items || []).map((t, k) => { const key = gi + '-' + k; const row = `<button class="ing ${c.i[key] ? 'on' : ''}" data-act="ing" data-id="${esc(r.id)}" data-k="${key}"><i class="box">${CHECK}</i><span>${fmt(t)}</span></button>`;
+    if(choosing !== r.id || !splitIngredient(t).key) return row;
+    const inl = ingListed(r.id, t);
+    return `<div class="ingrow">${row}<button class="ingadd ${inl ? 'in' : ''}" data-act="ingadd" data-id="${esc(r.id)}" data-k="${key}" aria-label="${inl ? 'Remove from shopping list' : 'Add to shopping list'}" title="${inl ? 'On your list. Tap to remove' : 'Add to shopping list'}">${inl ? CHECK.replace('#fff', 'currentColor') : ICON_PLUS}</button></div>`; }).join('')).join('');
   let n = 0; const curKey = p.cur >= 0 && p.all[p.cur] ? p.all[p.cur].key : null;
   const steps = (d.steps || []).map((sec, si) => (sec.section ? `<div class="stephead">${esc(sec.section)}</div>` : '') + (sec.items || []).map((st, k) => {
     const key = si + '-' + k; n++; const done = !!c.s[key]; const cur = !done && key === curKey;
     const tm = (st.timers || []).map(t => `<span class="tchip" data-act="timer" data-min="${+t.min}" data-label="${esc(t.label)}">⏲ ${esc(t.label)}</span>`).join('');
     return `<button class="step ${done ? 'done' : ''} ${cur ? 'cur' : ''}" id="s-${key}" data-act="step" data-id="${esc(r.id)}" data-k="${key}"><span class="num">${done ? '✓' : n}</span><span class="tx">${st.title ? `<div class="tt">${esc(st.title)}</div>` : ''}<p>${fmt(st.text)}</p>${tm ? `<div class="tchips">${tm}</div>` : ''}</span></button>`;
   }).join('')).join('');
-  const links = (d.links || []).filter(l => /^https?:\/\//i.test(l.url || '')).map(l => `<a class="lchip" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || 'Original recipe')} ↗</a>`).join('');
+  const srcs = (d.links || []).filter(l => /^https?:\/\//i.test(l.url || ''));
+  const links = srcs.map(l => `<a class="lchip" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || 'Original recipe')} ↗</a>`).join('');
   const notes = d.notes && d.notes.length ? `<div class="notes"><b>Good to know</b><ul>${d.notes.map(x => `<li>${fmt(x)}</li>`).join('')}</ul></div>` : '';
   return `<button class="back" data-act="go" data-h="recipes">← All recipes</button>
   <div class="card hero"><div class="art ${d.photo ? 'photo' : 'drawn'}">${d.photo ? pic(d) : `<div class="artbg">${art(kindOf(d), artText(d))}</div><div class="artfg">${art(kindOf(d), artText(d)).replace('xMidYMid slice', 'xMidYMid meet')}</div>`}<label class="heroedit" title="Change image" aria-label="Change image">${photoBusy === r.id ? '<span class="spin dark"></span>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>'}<input type="file" accept="image/*" hidden data-photo-for="${esc(r.id)}"></label></div><div class="body">
-    <h2>${esc(d.title)}</h2>
-    <div class="meta">${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}${d.prep ? `<span>Prep ${esc(d.prep)}</span>` : ''}${d.cook ? `<span>Cook ${esc(d.cook)}</span>` : ''}${d.total ? `<span>⏱ Total ${esc(d.total)}</span>` : ''}</div>
-    ${links ? `<div class="row src">${links}</div>` : ''}
-    <div class="prog-line" style="margin-top:0"><b>${p.total && p.done === p.total ? 'All done — enjoy!' : `${p.done} of ${p.total} steps done`}</b><span class="muted">${pct}%</span></div>
+    <div class="ttlrow"><h2>${esc(d.title)}</h2><div class="ttlbtns"><button class="ibtn" data-act="go" data-h="edit-${esc(r.id)}" aria-label="Edit recipe" title="Edit recipe">${ICON_PEN}</button><button class="ibtn ${moreOpen ? 'on' : ''}" data-act="more" aria-label="More options" aria-expanded="${moreOpen}">${ICON_MORE}</button>${moreOpen ? `<div class="moremenu" role="menu"><button role="menuitem" data-act="resetrecipe" data-id="${esc(r.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/></svg>Reset progress</button>${isArch(r.id) ? `<button role="menuitem" data-act="unarch" data-id="${esc(r.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10h14V9M10 13h4"/></svg>Unarchive</button>` : `<button role="menuitem" data-act="archive" data-id="${esc(r.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10h14V9M10 13h4"/></svg>Archive</button>`}<button role="menuitem" class="danger" data-act="delrecipe" data-id="${esc(r.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete recipe</button></div>` : ''}</div></div>
+    <div class="meta">${d.yield ? `<span>🍽 ${esc(d.yield)}</span>` : ''}${d.total ? `<span>⏱ ${esc(d.total)}</span>` : d.cook ? `<span>⏱ ${esc(d.cook)}</span>` : ''}${madeOf(r.id).n ? `<span class="made">♥ Made ${madeOf(r.id).n}×</span>` : ''}</div>
+    ${srcs.length ? `<div class="srcline">From ${srcs.map((l, li) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(li === 0 ? hostOf(l.url) : (l.label || hostOf(l.url)))} ↗</a>`).join(' · ')}</div>` : ''}
+    <div class="prog-line" style="margin-top:14px"><b>${p.total && p.done === p.total ? 'All done — enjoy!' : `${p.done} of ${p.total} steps`}</b>${p.total && p.done < p.total ? `<button class="mc" data-act="markall" data-id="${esc(r.id)}">Mark complete</button>` : (P().cook[r.id] || {}).before ? `<button class="mc undo" data-act="unmark" data-id="${esc(r.id)}" title="Go back to where you were"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>Undo</button>` : `<span class="muted">${pct}%</span>`}</div>
     <div class="bar"><i style="width:${pct}%"></i></div>
-    <div class="row" style="margin-top:12px">${isArch(r.id) ? `<button class="btn primary" data-act="unarch" data-id="${esc(r.id)}">Unarchive</button>` : ''}${!onList(r.id) && !isArch(r.id) ? `<button class="btn primary addlist" data-act="relist" data-id="${esc(r.id)}"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Add to shopping list</button>` : ''}<button class="btn ${wakeLock ? 'on' : ''}" data-act="wake"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>${wakeLock ? 'Screen staying on' : 'Keep screen on'}</button><button class="btn" data-act="go" data-h="edit-${esc(r.id)}">Edit recipe</button><button class="btn" data-act="resetrecipe" data-id="${esc(r.id)}">Reset progress</button>${isArch(r.id) ? '' : `<button class="btn" data-act="recipex" data-id="${esc(r.id)}">Archive or delete</button>`}</div>
+    <div class="actrow">${isArch(r.id) ? `<button class="btn primary grow" data-act="unarch" data-id="${esc(r.id)}">Unarchive</button>` : `<button class="btn primary addlist grow" data-act="addask" data-id="${esc(r.id)}"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.2L20 8H6.2"/><circle cx="9.5" cy="19.5" r="1.3"/><circle cx="17" cy="19.5" r="1.3"/></svg>Add to shopping list</button>`}<button class="btn wake ${wakeLock ? 'on' : ''}" data-act="wake" aria-pressed="${!!wakeLock}" title="Keep the screen from turning off while you cook"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>Screen on</button></div>
   </div></div>
   <div class="layout">
-    <div class="card panel ing-col"><h3>Ingredients</h3>${ings || '<div class="muted">No ingredients yet.</div>'}</div>
+    <div class="card panel ing-col"><div class="inghead"><h3>Ingredients</h3>${choosing === r.id ? `<button class="linkbtn addall" data-act="choosedone">Done</button>` : ''}</div>${ings || '<div class="muted">No ingredients yet.</div>'}</div>
     <div><h3 style="font-size:19px;margin:0 4px 10px">Steps</h3>${steps || '<div class="card empty">No steps yet.</div>'}
-    ${p.total && p.done === p.total ? `<div class="card finish">🎉 You made ${esc(d.title)}!</div>` : ''}${notes}
+    ${p.total && p.done === p.total ? `<div class="card finish">🎉 You made ${esc(d.title)}!${madeOf(r.id).n > 1 ? `<div class="fsub">That's ${madeOf(r.id).n} times so far</div>` : '<div class="fsub">Enjoy every bite</div>'}<button class="btn primary" data-act="again" data-id="${esc(r.id)}">↻ Make it again</button></div>` : ''}${notes}
     ${links ? `<div class="card panel origbox"><b>Photos and tips</b><div class="lchips">${links}</div></div>` : ''}</div>
-  </div>`;
+  </div>
+  ${addSheet && addSheet.id === r.id ? `<div class="sheetbg" data-act="sheetclose"></div><div class="asksheet" role="dialog" aria-label="Add to your shopping list"><div class="askt">${addSheet.again ? 'Add ingredients to your list?' : 'Add to your shopping list'}</div><button class="askopt main" data-act="addall" data-id="${esc(r.id)}"><b>Add all ${ingLines(d).length} ingredients</b><span>Everything starts unchecked</span></button><button class="askopt" data-act="choose" data-id="${esc(r.id)}"><b>Choose ingredients</b><span>Tap + next to the ones you need</span></button><button class="linkbtn askcancel" data-act="sheetclose">${addSheet.again ? 'Not now' : 'Cancel'}</button></div>` : ''}
+  ${choosing === r.id ? `<div class="selbar"><span>${chosenN ? `${chosenN} added to your list` : 'Tap + to add'}</span><button class="btn primary" data-act="choosedone">Done</button></div>` : ''}`;
 }
 function renderFab(r){
   const old = $('#fab'); if(old) old.remove();
-  if(r.v !== 'recipe') return; const rr = R(r.id); if(!rr) return; const p = progressOf(rr); if(p.cur < 0 || p.done === 0) return;
+  if(r.v !== 'recipe' || choosing) return; const rr = R(r.id); if(!rr) return; const p = progressOf(rr); if(p.cur < 0 || p.done === 0) return;
   const b = document.createElement('button'); b.id = 'fab'; b.className = 'btn primary fab'; b.textContent = '↓ Current step'; b.dataset.act = 'jump'; b.dataset.k = p.all[p.cur].key; document.body.appendChild(b);
 }
 
@@ -915,6 +959,7 @@ document.addEventListener('click', async e => {
   if(e.target.closest('[data-stop]') && !e.target.closest('[data-act]')) return;
   const el = e.target.closest('[data-act]');
   if(menuOpen && !(el && el.dataset.act === 'menu')){ menuOpen = false; render(); }
+  if(moreOpen && !(el && el.dataset.act === 'more')){ moreOpen = false; render(); }
   if(!el) return;
   const a = el.dataset.act, id = el.dataset.id, shop = user ? P().shop : {};
   if(a === 'menu'){ menuOpen = !menuOpen; render(); return; }
@@ -960,8 +1005,22 @@ document.addEventListener('click', async e => {
     return;
   }
   if(a === 'ing'){ const c = cookOf(id), key = el.dataset.k, v = !c.i[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.i = o.i || {})[key] = v; }); return; }
-  if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; }); return; }
-  if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { k.progress.cook[id] = {i:{}, s:{}}; })); return; }
+  if(a === 'step'){ const c = cookOf(id), key = el.dataset.k, v = !c.s[key]; mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; (o.s = o.s || {})[key] = v; delete o.before; syncMade(k, id); }); return; }
+  if(a === 'resetrecipe'){ confirmBox('Reset progress?', 'Unchecks every ingredient and step.', 'Reset', () => mutate(k => { bankLegacy(k, id); k.progress.cook[id] = {i:{}, s:{}}; })); return; }
+  if(a === 'more'){ moreOpen = !moreOpen; render(); return; }
+  if(a === 'addask'){ addSheet = {id}; render(); return; }
+  if(a === 'sheetclose'){ addSheet = null; render(); return; }
+  if(a === 'addall'){ const r = R(id); if(!r) return; const lines = ingLines(D(r)); addSheet = null; mutate(k => addFresh(k, id, lines)); toast(`Added ${lines.length} ingredients to your list`); return; }
+  if(a === 'choose'){ addSheet = null; choosing = id; chosenN = 0; mutate(k => unlinkRecipe(k, id)); setTimeout(() => { const c = $('.ing-col'); if(c) window.scrollTo({top: c.getBoundingClientRect().top + scrollY - 130, behavior: 'smooth'}); }, 30); return; }
+  if(a === 'choosedone'){ choosing = null; render(); if(chosenN) toast(`${chosenN} added to your list`); return; }
+  if(a === 'ingadd'){ const r = R(id); if(!r) return; const [gi, ki] = el.dataset.k.split('-').map(Number); const line = ((D(r).ingredients || [])[gi] || {}).items[ki]; if(!line) return;
+    if(ingListed(id, line)){ chosenN = Math.max(0, chosenN - 1); const key = splitIngredient(line).key; mutate(k => unlinkRecipe(k, id, new Set([key]))); return; }
+    chosenN++; mutate(k => addFresh(k, id, [line])); return; }
+  if(a === 'markall'){ const r = R(id); if(!r) return; const prev = JSON.parse(JSON.stringify(cookOf(id).s)); const keys = stepList(D(r)).map(x => x.key);
+    mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; o.s = o.s || {}; o.before = Object.assign({}, prev); keys.forEach(x => { o.s[x] = true; }); syncMade(k, id); });
+    toast('Marked complete 🎉'); return; }
+  if(a === 'unmark'){ mutate(k => { const o = k.progress.cook[id] = k.progress.cook[id] || {}; if(!o.before) return; o.s = Object.assign({}, o.before); delete o.before; syncMade(k, id); }); toast('Back to where you were'); return; }
+  if(a === 'again'){ mutate(k => { bankLegacy(k, id); k.progress.cook[id] = {i:{}, s:{}}; }); addSheet = {id, again: true}; render(); window.scrollTo({top: 0, behavior: 'smooth'}); return; }
   if(a === 'recipex'){ const r = R(id); if(!r) return;
     $('#modalRoot').innerHTML = `<div class="modal" data-act="mclose"><div class="card" data-stop><h3>${esc(D(r).title)}</h3><div class="muted">Archive hides it until you want it again. Delete removes it for good.</div><div class="row"><button class="btn" data-act="mclose">Cancel</button><button class="btn" data-act="archive" data-id="${esc(id)}">Archive</button><button class="btn dangerbtn" data-act="delrecipe" data-id="${esc(id)}">Delete</button></div></div></div>`;
     return; }
@@ -1069,6 +1128,6 @@ document.addEventListener('submit', async e => {
     if(error) toast("Couldn't save your name"); else { user = data.user; toast('Saved'); render(); }
   }
 });
-window.addEventListener('hashchange', render);
+window.addEventListener('hashchange', () => { addSheet = null; choosing = null; moreOpen = false; render(); });
 
 boot();
