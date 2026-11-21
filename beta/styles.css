@@ -1497,3 +1497,4 @@ button.rtag.add::after{inset:-7px 0;border-radius:99px}
 .ocrlist li{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}.ocrlist li:last-child{border-bottom:0}
 .ocrlist input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--ink)}.ocrlist .tin{flex:1;margin:0;min-height:44px}
 #shop-ocrlbl{border-color:var(--ink)}
+.ocradd{align-self:flex-start;min-height:44px;font-weight:600}.ocrtip{font-size:13px;margin:0 0 10px}
