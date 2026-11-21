@@ -1709,7 +1709,7 @@ function ocrFixWord(w, vocab){
 }
 // Fix misread words, then write it the way the list does: a capital first letter, known words in lowercase after
 // that ("Canned Meals & Fish" becomes "Canned meals & fish"). Words it doesn't know keep their capitals, so brands stay as read.
-function ocrTidy(t, vocab){
+function ocrTidyItem(t, vocab){
   let first = true;
   return t.replace(/[A-Za-z]+/g, w => { const f = ocrFixWord(w, vocab), known = vocab.ok(f.toLowerCase());
     const out = first ? f.charAt(0).toUpperCase() + (known ? f.slice(1).toLowerCase() : f.slice(1)) : known ? f.toLowerCase() : f; first = false; return out; });
@@ -1743,7 +1743,7 @@ async function readListPhoto(file){
     const lines = listLines(data.text);
     if(!lines.length){ shopOcr = {busy: false, msg: "Couldn't find any items in that photo. Try a sharper, straight-on photo or a screenshot."}; renderShopOcr(); return; }
     const vocab = ocrVocab();
-    shopOcr = {busy: false, lines: lines.map(t => { const junk = ocrJunk(t); return {t: junk ? t : ocrTidy(t, vocab), on: !junk}; })}; ocrMarkDups(); renderShopOcr();
+    shopOcr = {busy: false, lines: lines.map(t => { const junk = ocrJunk(t); return {t: junk ? t : ocrTidyItem(t, vocab), on: !junk}; })}; ocrMarkDups(); renderShopOcr();
   }catch(err){ console.error(err); shopOcr = {busy: false, msg: "Couldn't read that photo. Check your connection and try again."}; renderShopOcr(); }
 }
 // Commas split a line into separate items (Nov 21, 2026): "Canned soup, beef stew" becomes two rows, both ticked.
