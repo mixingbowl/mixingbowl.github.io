@@ -1654,9 +1654,10 @@ let shopOcr = null; // {busy, msg, lines:[{t, on}]}
 const LIST_HEAD = /^(grocer(y|ies)|shopping|to buy|list|groceries list|grocery list|shopping list|need|buy)\s*:?$/i;
 function listLines(text){
   const out = [], seen = new Set();
-  for(let l of String(text || '').replace(/\r/g, '').split('\n')){
+  for(let l of String(text || '').replace(/\r/g, '').split(/\n|,(?!\d)/)){
     l = l.replace(/\s+/g, ' ').trim();
     for(let i = 0; i < 2; i++) l = l.replace(/^(?:[-–—•*·▪●○◦□☐☑✓✔]+|\[\s*[xX✓✔]?\s*\]|\(\s*\)|\d+\s*[.)])\s*/, '');
+    l = l.replace(/^[^A-Za-z0-9½¼¾⅓⅔]+/, '').replace(/[\s'‘’"“”.:;~>_—–-]+$/, '').trim();
     if(!/[A-Za-z]{2}/.test(l) || LIST_HEAD.test(l) || l.length > 70) continue;
     const k = l.toLowerCase(); if(seen.has(k)) continue; seen.add(k);
     out.push(l.charAt(0).toUpperCase() + l.slice(1));
@@ -1664,12 +1665,23 @@ function listLines(text){
   }
   return out;
 }
+// Lines that look like noise or signs, not items, start unticked so they're easy to skip (Nov 21, 2026):
+// lots of stray symbols, a question, or a shouted heading like "ITEMS ESPECIALLY NEEDED".
+function ocrJunk(t){
+  const odd = (t.match(/[^A-Za-z0-9\s&',./()½¼¾⅓⅔-]/g) || []).length + (t.match(/[—–~|^*#@]/g) || []).length, letters = (t.match(/[A-Za-z]/g) || []).length;
+  if(odd > 1 || odd / Math.max(1, t.length) > .08) return true;
+  if(/\?/.test(t) || letters < 3) return true;
+  if(t === t.toUpperCase() && t.split(/\s+/).length >= 2) return true;
+  return false;
+}
 function renderShopOcr(){
   const s = shopOcr; if(!s){ $('#modalRoot').innerHTML = ''; return; }
   const n = s.lines ? s.lines.filter(x => x.on && x.t.trim()).length : 0;
   $('#modalRoot').innerHTML = `<div class="modal" data-act="shopocrclose"><div class="card ocrsheet" data-stop role="dialog" aria-modal="true" aria-labelledby="ocr-h"><h3 id="ocr-h">Add from photo</h3>
     ${s.lines ? `<p class="muted">Fix anything that was read wrong, and untick what you don't need.</p>
     <ul class="ocrlist">${s.lines.map((x, i) => `<li><input type="checkbox" id="ocr-c${i}" data-oi="${i}" ${x.on ? 'checked' : ''} aria-label="Add this item"><input class="tin" id="ocr-t${i}" data-oi="${i}" value="${esc(x.t)}" maxlength="80" aria-label="Item"></li>`).join('')}</ul>
+    <button class="linkbtn ocradd" type="button" data-act="shopocradd">Add an item</button>
+    <p class="muted ocrtip">Type commas to split a line into separate items.</p>
     <div class="row"><button class="btn quiet" data-act="shopocrclose">Cancel</button><button class="btn primary" data-act="shopocrok"${n ? '' : ' disabled'}>Add items</button></div>`
     : `<p class="muted" role="status" aria-live="polite">${esc(s.msg || '')}</p>${s.busy ? '' : `<div class="row"><button class="btn" data-act="shopocrclose">Close</button></div>`}`}
   </div></div>`;
@@ -1684,12 +1696,28 @@ async function readListPhoto(file){
     if(!shopOcr) return;
     const lines = listLines(data.text);
     if(!lines.length){ shopOcr = {busy: false, msg: "Couldn't find any items in that photo. Try a sharper, straight-on photo or a screenshot."}; renderShopOcr(); return; }
-    shopOcr = {busy: false, lines: lines.map(t => ({t, on: true}))}; renderShopOcr();
+    shopOcr = {busy: false, lines: lines.map(t => ({t, on: !ocrJunk(t)}))}; renderShopOcr();
   }catch(err){ console.error(err); shopOcr = {busy: false, msg: "Couldn't read that photo. Check your connection and try again."}; renderShopOcr(); }
+}
+// Commas split a line into separate items (Nov 21, 2026): "Canned soup, beef stew" becomes two rows, both ticked.
+function shopOcrSplit(i){
+  const x = shopOcr.lines[i]; if(!x) return;
+  const parts = x.t.split(/,(?!\d)/).map(t => t.trim()).filter(Boolean).map(t => ({t: t.charAt(0).toUpperCase() + t.slice(1), on: x.on}));
+  const ul = document.querySelector('.ocrlist'), top = ul ? ul.scrollTop : 0;
+  shopOcr.lines.splice(i, 1, ...(parts.length ? parts : [{t: '', on: x.on}])); renderShopOcr();
+  const ul2 = document.querySelector('.ocrlist'); if(ul2) ul2.scrollTop = top;
+}
+document.addEventListener('keydown', e => { const t = e.target; if(e.key !== 'Enter' || !t || !t.dataset || t.dataset.oi == null || t.type === 'checkbox' || !shopOcr || !shopOcr.lines) return;
+  e.preventDefault(); const i = +t.dataset.oi; if(/,(?!\d)/.test(t.value)){ shopOcr.lines[i].t = t.value; shopOcrSplit(i); } else if(i === shopOcr.lines.length - 1) shopOcrAddRow(); else { const n = $('#ocr-t' + (i + 1)); if(n) n.focus(); } });
+function shopOcrAddRow(){
+  if(!shopOcr || !shopOcr.lines) return;
+  shopOcr.lines.push({t: '', on: true}); renderShopOcr();
+  const ul = document.querySelector('.ocrlist'); if(ul) ul.scrollTop = ul.scrollHeight;
+  const n = $('#ocr-t' + (shopOcr.lines.length - 1)); if(n) n.focus();
 }
 function shopOcrAdd(){
   if(!shopOcr || !shopOcr.lines) return;
-  const add = shopOcr.lines.filter(x => x.on && x.t.trim()).map(x => x.t.trim()); if(!add.length) return;
+  const add = shopOcr.lines.filter(x => x.on && x.t.trim()).flatMap(x => x.t.split(/,(?!\d)/)).map(t => t.trim()).filter(Boolean); if(!add.length) return;
   mutate(k => { add.forEach((line, j) => { const sp = splitIngredient(line), name = (sp.name || line).trim() || line, qty = sp.name ? (sp.qty || '') : '';
     const id = 'c-' + Date.now().toString(36) + j + rid().slice(0, 4);
     k.shopping.items.push({id, name: name.charAt(0).toUpperCase() + name.slice(1), qty, section: guessSection(name, qty) || 'Other', key: splitIngredient(name).key, recipes: [], custom: true}); }); });
@@ -1701,7 +1729,7 @@ document.addEventListener('change', e => {
   const t = e.target; if(!t) return;
   if(t.id === 'shop-ocr'){ const f = t.files[0]; t.value = ''; if(f) readListPhoto(f); return; }
   if(t.dataset && t.dataset.oi != null && shopOcr && shopOcr.lines){ const x = shopOcr.lines[+t.dataset.oi]; if(!x) return;
-    if(t.type === 'checkbox') x.on = t.checked; else x.t = t.value;
+    if(t.type === 'checkbox') x.on = t.checked; else { x.t = t.value; if(/,(?!\d)/.test(t.value)){ shopOcrSplit(+t.dataset.oi); return; } }
     const b = document.querySelector('[data-act="shopocrok"]'); if(b) b.disabled = !shopOcr.lines.some(y => y.on && y.t.trim()); }
 });
 document.addEventListener('input', e => { const t = e.target; if(t && t.dataset && t.dataset.oi != null && t.type !== 'checkbox' && shopOcr && shopOcr.lines){ const x = shopOcr.lines[+t.dataset.oi]; if(x) x.t = t.value;
@@ -2627,6 +2655,7 @@ document.addEventListener('click', async e => {
   if(a === 'dlmine'){ downloadMine(); return; }
   if(a === 'formclear'){ confirmBox('Start over?', "This clears everything you've entered for this recipe.", 'Clear', clearForm); return; }
   if(a === 'shopocrok'){ shopOcrAdd(); return; }
+  if(a === 'shopocradd'){ shopOcrAddRow(); return; }
   if(a === 'errall'){ const t = Math.max(...(adminErr || []).map(x => new Date(x.at).getTime()), Date.now()); mutate(k => { k.progress.errSeenAt = t; k.progress.errSeen = {}; }, true); errPill(); return; }
   if(a === 'fcatmenu'){ fCatOpen = !fCatOpen; fSortOpen = false; render(); return; }
   if(a === 'fcatpick'){ const t = el.dataset.t; fCat = fCat.includes(t) ? fCat.filter(x => x !== t) : fCat.concat(t); render(); return; }
