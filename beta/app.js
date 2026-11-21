@@ -1103,10 +1103,10 @@ function renderShopping(){
       <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
       <button class="btn dark" type="submit">Add</button>
       <button class="btn" type="button" data-act="addclose">Done</button>
-    </form>` : items.length || chipRecipes.length ? `<div class="addbtns"><button class="btn primary" data-act="pickopen">Add from recipe</button><button class="btn" data-act="addopen">Add an item</button>${SHOP_PHOTO_BTN}</div>` : ''}
+    </form>` : items.length || chipRecipes.length ? `<div class="addbtns"><button class="btn primary" data-act="pickopen">${ICON_BOOKADD}Add from recipe</button><button class="btn" data-act="addopen">${ICON_LISTADD}Add items individually</button>${SHOP_PHOTO_BTN}</div>` : ''}
   ${!items.length && !chipRecipes.length && !Q && f !== 'have' ? `<section class="shopstart"><h3>Your list is currently empty</h3><p class="muted">Add ingredients from your recipe(s) or add individual ingredients.</p>
     <ol><li><i>1</i><span>Add a recipe from your recipe box.</span></li><li><i>2</i><span>The recipe ingredients land here, sorted by aisle and added up across recipes.</span></li><li><i>3</i><span>Check things off as you shop.</span></li></ol>
-    <button class="btn primary" data-act="pickopen">${ICON_BOOKADD}Add from recipe</button>${ui.addOpen ? '' : '<button class="btn" data-act="addopen">Add an item</button>'}${SHOP_PHOTO_BTN}</section>
+    <button class="btn primary" data-act="pickopen">${ICON_BOOKADD}Add from recipe</button>${ui.addOpen ? '' : `<button class="btn" data-act="addopen">${ICON_LISTADD}Add items individually</button>`}${SHOP_PHOTO_BTN}</section>
     <p class="muted shophint">You can also tap <b>Shop for ingredients</b> while you are on any recipe page.</p>` : ''}
   ${!Q && !homeMode && items.length ? `<button class="homelink" data-act="homemode">${ICON_HOME}Check off pantry</button>` : ''}
   ${ask && !Q && !homeMode ? `<div class="mergeask" role="status"><p>Are these items the same? <b>${esc(ask.A.name)}</b> and <b>${esc(ask.B.name)}</b>.</p><div class="mergebtns"><button class="btn dark sm" data-act="mergeyes" data-a="${esc(ask.A.id)}" data-b="${esc(ask.B.id)}">Combine</button><button class="btn quiet sm" data-act="mergeno" data-p="${esc(ask.pk)}">Keep separate</button></div></div>` : ''}
@@ -1648,6 +1648,7 @@ function renderForm(id){
 // ---- Add from photo on the shopping list (Nov 21, 2026) ----
 // A photo or screenshot of a written list. The text is read on the device, like recipe photos, and nothing is uploaded.
 // Each line becomes an item the person can fix or untick before it goes on the list, sorted into an aisle the usual way.
+const ICON_LISTADD = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/></svg>';
 const ICON_CAM = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>';
 const SHOP_PHOTO_BTN = `<label class="btn" id="shop-ocrlbl">${ICON_CAM}Add from photo<input type="file" id="shop-ocr" accept="image/*" hidden></label>`;
 let shopOcr = null; // {busy, msg, lines:[{t, on}]}
@@ -1721,6 +1722,34 @@ function ocrMarkDups(){
   const have = new Set(allItems().map(it => ocrKey(it.name))), seen = new Set();
   shopOcr.lines.forEach(x => { const k = ocrKey(x.t); const was = x.dup; x.dup = !!k && (have.has(k) || seen.has(k)); if(k) seen.add(k); if(x.dup && !was) x.on = false; });
 }
+// Several items on one line (Nov 21, 2026). Two ways to tell:
+// 1. A wide gap between words. Flyers and donation bags are often printed in columns, and the camera reads straight
+//    across them, so a gap of about three letters or more starts a new item.
+// 2. A word that usually starts an item, appearing again mid-line: "Canned soup canned beans" is two items.
+//    "&" and "and" never split ("Mac & cheese"), so those still need a comma.
+function ocrColumns(data){
+  const lines = (data && (data.lines || (data.blocks || []).flatMap(b => (b.paragraphs || []).flatMap(p => p.lines || [])))) || [];
+  if(!lines.length) return '';
+  return lines.map(l => {
+    const ws = (l.words || []).filter(w => w.bbox && String(w.text || '').trim()); if(ws.length < 2) return String(l.text || '').trim();
+    const chars = ws.reduce((n, w) => n + w.text.length, 0), cw = ws.reduce((n, w) => n + (w.bbox.x1 - w.bbox.x0), 0) / Math.max(1, chars);
+    let out = ws[0].text;
+    for(let i = 1; i < ws.length; i++){ const gap = ws[i].bbox.x0 - ws[i - 1].bbox.x1; out += (gap > cw * 3 ? '\n' : ' ') + ws[i].text; }
+    return out;
+  }).join('\n');
+}
+const ITEM_HEAD = /^(?:canned|frozen|fresh|dried|boxed|bagged|jarred|box|boxes|bag|bags|jar|jars|can|cans|bottle|bottles|carton|cartons)$/i;
+function ocrSplitHeads(t){
+  const ws = t.split(' '), out = []; let cur = [];
+  ws.forEach((w, i) => {
+    const head = ITEM_HEAD.test(w.replace(/[^A-Za-z]/g, '')), prevHead = i > 0 && ITEM_HEAD.test(ws[i - 1].replace(/[^A-Za-z]/g, ''));
+    const joiner = i > 0 && /^(?:&|and|or|of|in|with)$/i.test(ws[i - 1]);
+    if(head && cur.length && !prevHead && !joiner && i < ws.length - 1){ out.push(cur.join(' ')); cur = []; }
+    cur.push(w);
+  });
+  if(cur.length) out.push(cur.join(' '));
+  return out.map(x => x.charAt(0).toUpperCase() + x.slice(1));
+}
 function renderShopOcr(){
   const s = shopOcr; if(!s){ $('#modalRoot').innerHTML = ''; return; }
   const n = s.lines ? s.lines.filter(x => x.on && x.t.trim()).length : 0;
@@ -1740,10 +1769,10 @@ async function readListPhoto(file){
     const T = await loadTess(), img = await shrink(file, 2200);
     const {data} = await T.recognize(img, 'eng', {logger: m => { if(m.status === 'recognizing text') say('Reading your list… ' + Math.round(m.progress * 100) + '%'); }});
     if(!shopOcr) return;
-    const lines = listLines(data.text);
+    const lines = listLines(ocrColumns(data) || data.text);
     if(!lines.length){ shopOcr = {busy: false, msg: "Couldn't find any items in that photo. Try a sharper, straight-on photo or a screenshot."}; renderShopOcr(); return; }
     const vocab = ocrVocab();
-    shopOcr = {busy: false, lines: lines.map(t => { const junk = ocrJunk(t); return {t: junk ? t : ocrTidyItem(t, vocab), on: !junk}; })}; ocrMarkDups(); renderShopOcr();
+    shopOcr = {busy: false, lines: lines.flatMap(t => ocrJunk(t) ? [{t, on: false}] : ocrSplitHeads(ocrTidyItem(t, vocab)).map(x => ({t: x, on: true}))).slice(0, 80)}; ocrMarkDups(); renderShopOcr();
   }catch(err){ console.error(err); shopOcr = {busy: false, msg: "Couldn't read that photo. Check your connection and try again."}; renderShopOcr(); }
 }
 // Commas split a line into separate items (Nov 21, 2026): "Canned soup, beef stew" becomes two rows, both ticked.
