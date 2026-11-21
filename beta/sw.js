@@ -2,7 +2,7 @@
 // Network first for everything: you always get the newest version when you have a signal.
 // Saved copies are only a fallback for when you're offline.
 // Change VERSION on every deploy. The old cache is deleted when the new worker takes over.
-const VERSION = 'b250';
+const VERSION = 'b251';
 const CACHE = 'butter-math-beta-' + VERSION;
 const OFFLINE = '/beta/offline.html';
 const PRECACHE = [OFFLINE, '/beta/icons/icon-192-v2.png', '/beta/icons/apple-touch-icon-v2.png'];
