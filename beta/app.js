@@ -1674,12 +1674,59 @@ function ocrJunk(t){
   if(t === t.toUpperCase() && t.split(/\s+/).length >= 2) return true;
   return false;
 }
+// Best guess at what a misread word meant (Nov 21, 2026): each word is checked against common grocery words plus
+// everything already on this kitchen's list. A word one letter off ("friits", "Cenned"), or two off in a long word,
+// becomes the closest known word. Unknown words that aren't close to anything (brand names) are left as read.
+const GROCERY_WORDS = 'allspice almond almonds and apple apples applesauce asparagus avocado baby bacon bag bagel bags bakery baking banana bananas bars basil bay bean beans because beef beet before bell berrie berries berry biscuit black blueberrie blueberry bottle bottles bouillon box boxes bread breadcrumb broccoli broth brownie bun butter buttermilk cabbage cake can candy canned cans cardamom carrot carrots cat cauliflower cayenne celery cereal checked cheddar cheese cherrie cherry chicken chickpea chili chip chips chive chocolate chorizo chuck chunk cilantro cinnamon clam clove cocoa coconut cod coffee coloring condiments confectioner cookies coriander corn cornstarch couscous cracker crackers cream croissant crumb crushed cucumber cumin curry dairy detergent diapers diced dill dish dog dressing dried egg eggplant eggs extract fennel feta fire first fish flake flour foil food formula fresh frosting frozen fruit fruits fruity garlic gelatin ginger graham grains granola granule grape grapes gravy green ground half ham herb honey hot hygiene ice instant italian items jalape jalapeno jam jar jars jelly juice kale ketchup knows lamb lasagna laundry leaf leave leek lemon lentil lettuce light lime liner list little low macaroni mango maple marinara marshmallow mashed mayo mayonnaise meal meals meat meatball melt milk mint mix mixed molasses mozzarella muffin mushroom mustard naan napkins non nonperishable noodle noodles nutmeg nuts oat oatmeal oats oil oils olive onion onions orange oranges oregano pack packs pan pancake pancetta panko paper paprika parchment parmesan parsley passata pasta paste peach peache peanut pear peas pecan peeled pepper pepperoni perishable pesto pet pineapple pita pizza plastic poblano pork potato potatoe potatoes powder produce products prosciutto pudding pumpkin pur quinoa radish raisin raisins ramen ranch raspberrie raspberry red rice ricotta roasted roll rosemary sage salami salmon salsa salt sauce sauces sausage scallion scallop seafood seasoning serrano shallot shampoo shelf shortening shrimp skewer sliced smokie snacks soap soda sodium soup soups soy spaghetti spices spinach sponges sprinkle squash sriracha stable steak stew stewed stews stick stock stops strawberrie strawberry stuffing sugar supplies sweet syrup tarragon tartar tea the thyme tissue toilet toiletries tomato tomatoe tomatoes toothpaste toothpick tortilla tortillas towels trash tuna turkey turmeric vanilla vegetable vegetables veggies vinegar walnut water white whole wipes worcestershire word wrap yeast yogurt zucchini'.split(' ');
+function ocrVocab(){
+  // v: words to suggest; v.ok: also accepts a plain plural "s", so "tomatos" isn't treated as a misread word
+  const v = new Set(); const add = w => { w = w.toLowerCase(); if(w.length >= 3) v.add(w); };
+  GROCERY_WORDS.forEach(add); allItems().forEach(it => String(it.name || '').split(/[^A-Za-z]+/).forEach(add));
+  v.ok = w => v.has(w) || (/s$/.test(w) && v.has(w.slice(0, -1)));
+  return v;
+}
+function editDist(a, b, max){
+  if(Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({length: b.length + 1}, (_, j) => j), pp = null;
+  for(let i = 1; i <= a.length; i++){
+    const cur = [i]; let low = i;
+    for(let j = 1; j <= b.length; j++){
+      let d = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if(pp && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d = Math.min(d, pp[j - 2] + 1);
+      cur.push(d); if(d < low) low = d;
+    }
+    if(low > max) return max + 1; pp = prev; prev = cur;
+  }
+  return prev[b.length];
+}
+function ocrFixWord(w, vocab){
+  const lw = w.toLowerCase(); if(lw.length < 4 || /[^a-z]/.test(lw) || vocab.ok(lw)) return w;
+  const max = lw.length >= 7 ? 2 : 1; let best = null, bd = max + 1;
+  for(const v of vocab){ if(lw.startsWith(v) || v.startsWith(lw)) continue; // "Spaghettio" stays, not "Spaghetti"
+    const d = editDist(lw, v, max); if(d < bd || (d === bd && best && v.length === lw.length && best.length !== lw.length)){ bd = d; best = v; } }
+  if(!best) return w;
+  return w === w.toUpperCase() ? best.toUpperCase() : w.charAt(0) === w.charAt(0).toUpperCase() ? best.charAt(0).toUpperCase() + best.slice(1) : best;
+}
+// Fix misread words, then write it the way the list does: a capital first letter, known words in lowercase after
+// that ("Canned Meals & Fish" becomes "Canned meals & fish"). Words it doesn't know keep their capitals, so brands stay as read.
+function ocrTidy(t, vocab){
+  let first = true;
+  return t.replace(/[A-Za-z]+/g, w => { const f = ocrFixWord(w, vocab), known = vocab.ok(f.toLowerCase());
+    const out = first ? f.charAt(0).toUpperCase() + (known ? f.slice(1).toLowerCase() : f.slice(1)) : known ? f.toLowerCase() : f; first = false; return out; });
+}
+// Same item, ignoring capitals, spacing, and a plural "s": "Canned vegetables" matches "Canned Vegetable".
+const ocrKey = t => String(t || '').toLowerCase().replace(/[^a-z0-9& ]+/g, ' ').split(/\s+/).filter(Boolean).map(w => w.length > 3 ? w.replace(/ies$/, 'y').replace(/oes$/, 'o').replace(/([^s])s$/, '$1') : w).join(' ');
+function ocrMarkDups(){
+  if(!shopOcr || !shopOcr.lines) return;
+  const have = new Set(allItems().map(it => ocrKey(it.name))), seen = new Set();
+  shopOcr.lines.forEach(x => { const k = ocrKey(x.t); const was = x.dup; x.dup = !!k && (have.has(k) || seen.has(k)); if(k) seen.add(k); if(x.dup && !was) x.on = false; });
+}
 function renderShopOcr(){
   const s = shopOcr; if(!s){ $('#modalRoot').innerHTML = ''; return; }
   const n = s.lines ? s.lines.filter(x => x.on && x.t.trim()).length : 0;
   $('#modalRoot').innerHTML = `<div class="modal" data-act="shopocrclose"><div class="card ocrsheet" data-stop role="dialog" aria-modal="true" aria-labelledby="ocr-h"><h3 id="ocr-h">Add from photo</h3>
     ${s.lines ? `<p class="muted">Edit your list by unchecking what isn’t needed. Use commas to split items into separate lines.</p>
-    <ul class="ocrlist">${s.lines.map((x, i) => `<li><label class="ocrck"><input type="checkbox" id="ocr-c${i}" data-oi="${i}" ${x.on ? 'checked' : ''} aria-label="Add this item"></label><input class="tin" id="ocr-t${i}" data-oi="${i}" value="${esc(x.t)}" maxlength="80" aria-label="Item"></li>`).join('')}</ul>
+    <ul class="ocrlist">${s.lines.map((x, i) => `<li><label class="ocrck"><input type="checkbox" id="ocr-c${i}" data-oi="${i}" ${x.on ? 'checked' : ''} aria-label="Add this item"></label><span class="ocrcell"><input class="tin" id="ocr-t${i}" data-oi="${i}" value="${esc(x.t)}" maxlength="80" aria-label="Item"${x.dup ? ` aria-describedby="ocr-d${i}"` : ''}>${x.dup ? `<span class="tag ocrdup" id="ocr-d${i}" style="--c:#6E6259">Already on list</span>` : ''}</span></li>`).join('')}</ul>
     <button class="linkbtn ocradd" type="button" data-act="shopocradd">Add an item</button>
     <div class="row"><button class="btn quiet" data-act="shopocrclose">Cancel</button><button class="btn primary" data-act="shopocrok"${n ? '' : ' disabled'}>Add items</button></div>`
     : `<p class="muted" role="status" aria-live="polite">${esc(s.msg || '')}</p>${s.busy ? '' : `<div class="row"><button class="btn" data-act="shopocrclose">Close</button></div>`}`}
@@ -1695,7 +1742,8 @@ async function readListPhoto(file){
     if(!shopOcr) return;
     const lines = listLines(data.text);
     if(!lines.length){ shopOcr = {busy: false, msg: "Couldn't find any items in that photo. Try a sharper, straight-on photo or a screenshot."}; renderShopOcr(); return; }
-    shopOcr = {busy: false, lines: lines.map(t => ({t, on: !ocrJunk(t)}))}; renderShopOcr();
+    const vocab = ocrVocab();
+    shopOcr = {busy: false, lines: lines.map(t => { const junk = ocrJunk(t); return {t: junk ? t : ocrTidy(t, vocab), on: !junk}; })}; ocrMarkDups(); renderShopOcr();
   }catch(err){ console.error(err); shopOcr = {busy: false, msg: "Couldn't read that photo. Check your connection and try again."}; renderShopOcr(); }
 }
 // Commas split a line into separate items (Nov 21, 2026): "Canned soup, beef stew" becomes two rows, both ticked.
@@ -1703,7 +1751,7 @@ function shopOcrSplit(i){
   const x = shopOcr.lines[i]; if(!x) return;
   const parts = x.t.split(/,(?!\d)/).map(t => t.trim()).filter(Boolean).map(t => ({t: t.charAt(0).toUpperCase() + t.slice(1), on: x.on}));
   const ul = document.querySelector('.ocrlist'), top = ul ? ul.scrollTop : 0;
-  shopOcr.lines.splice(i, 1, ...(parts.length ? parts : [{t: '', on: x.on}])); renderShopOcr();
+  shopOcr.lines.splice(i, 1, ...(parts.length ? parts : [{t: '', on: x.on}])); ocrMarkDups(); renderShopOcr();
   const ul2 = document.querySelector('.ocrlist'); if(ul2) ul2.scrollTop = top;
 }
 document.addEventListener('keydown', e => { const t = e.target; if(e.key !== 'Enter' || !t || !t.dataset || t.dataset.oi == null || t.type === 'checkbox' || !shopOcr || !shopOcr.lines) return;
@@ -1728,7 +1776,8 @@ document.addEventListener('change', e => {
   const t = e.target; if(!t) return;
   if(t.id === 'shop-ocr'){ const f = t.files[0]; t.value = ''; if(f) readListPhoto(f); return; }
   if(t.dataset && t.dataset.oi != null && shopOcr && shopOcr.lines){ const x = shopOcr.lines[+t.dataset.oi]; if(!x) return;
-    if(t.type === 'checkbox') x.on = t.checked; else { x.t = t.value; if(/,(?!\d)/.test(t.value)){ shopOcrSplit(+t.dataset.oi); return; } }
+    if(t.type === 'checkbox') x.on = t.checked; else { x.t = t.value; if(/,(?!\d)/.test(t.value)){ shopOcrSplit(+t.dataset.oi); return; }
+      const before = shopOcr.lines.map(y => !!y.dup).join(); ocrMarkDups(); if(shopOcr.lines.map(y => !!y.dup).join() !== before){ const ul = document.querySelector('.ocrlist'), top = ul ? ul.scrollTop : 0; renderShopOcr(); const u2 = document.querySelector('.ocrlist'); if(u2) u2.scrollTop = top; } }
     const b = document.querySelector('[data-act="shopocrok"]'); if(b) b.disabled = !shopOcr.lines.some(y => y.on && y.t.trim()); }
 });
 document.addEventListener('input', e => { const t = e.target; if(t && t.dataset && t.dataset.oi != null && t.type !== 'checkbox' && shopOcr && shopOcr.lines){ const x = shopOcr.lines[+t.dataset.oi]; if(x) x.t = t.value;
