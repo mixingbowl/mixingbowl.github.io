@@ -1678,7 +1678,7 @@ function renderShopOcr(){
   const s = shopOcr; if(!s){ $('#modalRoot').innerHTML = ''; return; }
   const n = s.lines ? s.lines.filter(x => x.on && x.t.trim()).length : 0;
   $('#modalRoot').innerHTML = `<div class="modal" data-act="shopocrclose"><div class="card ocrsheet" data-stop role="dialog" aria-modal="true" aria-labelledby="ocr-h"><h3 id="ocr-h">Add from photo</h3>
-    ${s.lines ? `<p class="muted">Edit your list by unchecking what isn’t needed. Use commas to split ingredients into separate lines.</p>
+    ${s.lines ? `<p class="muted">Edit your list by unchecking what isn’t needed. Use commas to split items into separate lines.</p>
     <ul class="ocrlist">${s.lines.map((x, i) => `<li><label class="ocrck"><input type="checkbox" id="ocr-c${i}" data-oi="${i}" ${x.on ? 'checked' : ''} aria-label="Add this item"></label><input class="tin" id="ocr-t${i}" data-oi="${i}" value="${esc(x.t)}" maxlength="80" aria-label="Item"></li>`).join('')}</ul>
     <button class="linkbtn ocradd" type="button" data-act="shopocradd">Add an item</button>
     <div class="row"><button class="btn quiet" data-act="shopocrclose">Cancel</button><button class="btn primary" data-act="shopocrok"${n ? '' : ' disabled'}>Add items</button></div>`
