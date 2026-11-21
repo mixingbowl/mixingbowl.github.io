@@ -1103,10 +1103,10 @@ function renderShopping(){
       <select id="addFor" data-keep aria-label="Which recipe is it for?"><option value="">No recipe</option>${recipes.map(r => `<option value="${esc(r.id)}">For ${esc(D(r).short || D(r).title)}</option>`).join('')}</select>
       <button class="btn dark" type="submit">Add</button>
       <button class="btn" type="button" data-act="addclose">Done</button>
-    </form>` : items.length || chipRecipes.length ? `<div class="addbtns"><button class="btn primary" data-act="pickopen">${ICON_BOOKADD}Add from recipe</button><button class="btn" data-act="addopen">${ICON_LISTADD}Add items individually</button>${SHOP_PHOTO_BTN}</div>` : ''}
+    </form>` : items.length || chipRecipes.length ? `<div class="addbtns"><button class="btn primary" data-act="pickopen">${ICON_BOOKADD}Add from recipe</button><button class="btn" data-act="addopen">${ICON_LISTADD}Add individual items</button>${SHOP_PHOTO_BTN}</div>` : ''}
   ${!items.length && !chipRecipes.length && !Q && f !== 'have' ? `<section class="shopstart"><h3>Your list is currently empty</h3><p class="muted">Add ingredients from your recipe(s) or add individual ingredients.</p>
     <ol><li><i>1</i><span>Add a recipe from your recipe box.</span></li><li><i>2</i><span>The recipe ingredients land here, sorted by aisle and added up across recipes.</span></li><li><i>3</i><span>Check things off as you shop.</span></li></ol>
-    <button class="btn primary" data-act="pickopen">${ICON_BOOKADD}Add from recipe</button>${ui.addOpen ? '' : `<button class="btn" data-act="addopen">${ICON_LISTADD}Add items individually</button>`}${SHOP_PHOTO_BTN}</section>
+    <button class="btn primary" data-act="pickopen">${ICON_BOOKADD}Add from recipe</button>${ui.addOpen ? '' : `<button class="btn" data-act="addopen">${ICON_LISTADD}Add individual items</button>`}${SHOP_PHOTO_BTN}</section>
     <p class="muted shophint">You can also tap <b>Shop for ingredients</b> while you are on any recipe page.</p>` : ''}
   ${!Q && !homeMode && items.length ? `<button class="homelink" data-act="homemode">${ICON_HOME}Check off pantry</button>` : ''}
   ${ask && !Q && !homeMode ? `<div class="mergeask" role="status"><p>Are these items the same? <b>${esc(ask.A.name)}</b> and <b>${esc(ask.B.name)}</b>.</p><div class="mergebtns"><button class="btn dark sm" data-act="mergeyes" data-a="${esc(ask.A.id)}" data-b="${esc(ask.B.id)}">Combine</button><button class="btn quiet sm" data-act="mergeno" data-p="${esc(ask.pk)}">Keep separate</button></div></div>` : ''}
